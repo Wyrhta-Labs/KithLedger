@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Structured audit logging** — `src/lib/logger.ts` emits JSON events to stdout for auth and key-lifecycle actions (`auth.token.success/failure`, `auth.key.created/revoked/used`)
+- **Structured audit logging** — `src/lib/logger.ts` emits JSON events to stdout for auth and key-lifecycle actions (`auth.token.success/failure`, `auth.key.created/revoked/used`) ([87617f5])
 - **Security headers middleware** — `X-Content-Type-Options`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0`, `Referrer-Policy`, `Permissions-Policy`, and `Strict-Transport-Security` (non-localhost only)
 - **Request ID middleware** — Every request receives a UUID via `X-Request-Id` response header; propagated via `c.get('requestId')` for use in log events
 - **Rate limiting** — `POST /api/v1/auth/token` limited to 10 attempts per 15 minutes per IP; returns `429` with `Retry-After` header
@@ -86,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Developer docs** — CLAUDE.md with architecture notes, module structure, and gotchas ([b48d3c2])
 
 [Unreleased]: https://github.com/KithLedger/KithLedger/compare/v0.1.0...HEAD
+[87617f5]: https://github.com/KithLedger/KithLedger/commit/87617f5
 [0.1.0]: https://github.com/KithLedger/KithLedger/commits/v0.1.0
 [d906993]: https://github.com/KithLedger/KithLedger/commit/d906993
 [b48d3c2]: https://github.com/KithLedger/KithLedger/commit/b48d3c2
