@@ -4,20 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**KithLedger** is an API-first database for tracking and nurturing personal relationships.
-
-## Tech Stack
-
-| Concern | Choice |
-|---|---|
-| Runtime | Node.js 22 + TypeScript |
-| HTTP Framework | Hono + `@hono/node-server` |
-| ORM | Drizzle ORM |
-| Database | PostgreSQL 16 |
-| Validation | Zod |
-| Testing | Vitest |
-| Deployment | Docker Compose (self-hosted) |
-| Auth | API keys (`kl_` prefix) + JWT (HS256) |
+**KithLedger** is an API-first personal relationship manager (people, interactions, reminders, relationships). Built with Node.js 22 + TypeScript, Hono, Drizzle ORM, PostgreSQL 16, Zod, Vitest.
 
 ## Commands
 
@@ -31,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `npm run db:migrate` | Apply migrations to the database |
 | `npm run db:push` | Push schema directly (no migration file) |
 | `npm run db:studio` | Open Drizzle Studio |
-| `npm test` | Run integration tests (requires DB) |
+| `npm test` | Run integration tests (**requires DB — see Testing**) |
 | `npm run test:watch` | Watch mode tests |
 | `npm run docker:up` | Start API + Postgres containers |
 | `npm run docker:down` | Stop containers |
@@ -39,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Environment
 
-Copy `.env.example` → `.env` and fill in values:
+Copy `.env.example` → `.env`:
 
 ```
 DATABASE_URL=postgres://kith:changeme@localhost:5432/kithledger
@@ -55,51 +42,66 @@ JWT_TTL_SECONDS=604800
 src/
 ├── index.ts           # Entrypoint: run migrations, start server
 ├── app.ts             # Hono app factory + middleware wiring
-├── config/env.ts      # Zod-validated env vars
+├── config/env.ts      # Zod-validated env vars (single source of truth)
 ├── db/
 │   ├── index.ts       # Drizzle client singleton
-│   ├── schema/        # Drizzle table definitions
+│   ├── schema/
+│   │   ├── index.ts          # Re-exports (uses .js extensions — ESM runtime)
+│   │   └── drizzle-schema.ts # Re-exports without .js — for drizzle-kit CJS compat
 │   └── migrations/    # Generated SQL migration files
 ├── middleware/
 │   ├── auth.ts        # requireAuth / requireJwt guards
 │   ├── api-key.ts     # API key extraction + DB validation
-│   ├── jwt.ts         # JWT verification
+│   ├── jwt.ts         # JWT verification (HS256)
 │   └── error-handler.ts
-├── routes/            # Hono route handlers (HTTP layer only)
-├── services/          # Business logic + Drizzle queries
-├── validators/        # Zod input schemas
+├── routes/            # HTTP method + path only — no business logic
+├── services/          # All business logic + Drizzle queries
+├── validators/        # Zod input schemas (request body + query params)
 └── lib/
-    ├── response.ts    # ok() / err() envelope helpers
-    ├── pagination.ts  # Parse limit/offset query params
-    └── crypto.ts      # generateApiKey(), hashKey()
+    ├── response.ts    # ok(c, data, meta?) and err(c, code, msg, status)
+    ├── pagination.ts  # parsePagination(query) → { limit, offset }
+    └── crypto.ts      # generateApiKey() → { raw, hash, prefix }
 ```
 
 ## Architecture Notes
 
-- **Layer rule:** `routes/` → calls `services/` → uses `db/`. No DB access in routes.
-- **Auth flow:** `Authorization: Bearer kl_xxx` → API key path; `Bearer eyJ…` → JWT path.
-  - Key mgmt routes (`/auth/keys`) require JWT only.
-- **API keys:** SHA-256 of a 32-byte random hex string prefixed with `kl_`. Raw key shown once at creation.
-- **Recurring reminders:** On `POST /reminders/:id/complete`, a new pending reminder is inserted in the same transaction when `recurrence` (ISO 8601 duration like `P1M`) is set.
-- **Relationships:** `is_mutual = true` means one row represents a bidirectional link.
-- **Migrations at startup:** `migrate()` is called programmatically in `src/index.ts` before `serve()`.
+- **Layer rule:** `routes/` → `services/` → `db/`. Routes never touch Drizzle directly.
+- **Auth dispatch:** `Bearer kl_xxx` → API key path; `Bearer eyJ…` → JWT path. Key-management routes (`/auth/keys`) reject API key auth — require JWT only.
+- **API keys:** SHA-256 of a `kl_` + 32-byte random hex. Raw key returned once at creation; only hash stored.
+- **Recurring reminders:** `POST /reminders/:id/complete` wraps update + new-row insert in a Drizzle transaction when `recurrence` (ISO 8601, e.g. `P1M`) is set.
+- **Relationships:** One row with `is_mutual = true` represents a bidirectional link. Graph queries union `from_person_id = X` with `to_person_id = X WHERE is_mutual = true`.
+- **Migrations at startup:** `migrate()` runs programmatically in `src/index.ts` before `serve()`.
 
-## API Base URL
+## Adding a New Resource
 
-`/api/v1` — all resource endpoints require `Authorization` header.
+Follow this pattern (example: a new `notes` resource):
 
-### Endpoints summary
+1. `src/db/schema/notes.ts` — Drizzle table, export types
+2. Add re-export to `src/db/schema/index.ts` and `src/db/schema/drizzle-schema.ts`
+3. `npm run db:generate` → review SQL, then `npm run db:migrate`
+4. `src/validators/notes.ts` — Zod schemas for create/update/list query
+5. `src/services/notes.ts` — CRUD functions using `db`
+6. `src/routes/notes.ts` — Hono router, `use('*', requireAuth)`, call service
+7. Mount in `src/routes/index.ts`
+8. `tests/notes.test.ts` — integration tests
 
-- `GET /health` — health check (no auth)
-- `POST /api/v1/auth/token` — get JWT from admin password
-- `GET|POST|DELETE /api/v1/auth/keys` — manage API keys (JWT only)
-- `GET|POST /api/v1/people` + `GET|PATCH|DELETE /api/v1/people/:id`
-- `GET /api/v1/people/:id/graph?depth=1` — ego network
-- `GET|POST /api/v1/interactions` + `GET|PATCH|DELETE /api/v1/interactions/:id`
-- `GET|POST /api/v1/reminders` + `GET|PATCH|DELETE /api/v1/reminders/:id`
-  - `POST /api/v1/reminders/:id/complete|snooze|dismiss`
-- `GET|POST /api/v1/relationships` + `GET|PATCH|DELETE /api/v1/relationships/:id`
+## Testing
 
-## Important: drizzle-kit
+Tests are **integration tests** that hit a real PostgreSQL database. Before running:
 
-`drizzle-kit` must be run via `tsx` because the schema files use ESM `.js` extension imports. The `db:*` npm scripts handle this automatically.
+```bash
+# Option A: use Docker DB
+npm run docker:up   # start DB (and API)
+# Option B: use local DB — ensure DATABASE_URL points to a running instance
+
+npm test
+```
+
+`tests/setup.ts` runs migrations and truncates all tables before each test. Tests run in a single fork (`singleFork: true`) to avoid parallel DB conflicts.
+
+## Gotchas
+
+- **`drizzle-kit` must run via `tsx`** — schema files use `.js` extension imports (ESM runtime requirement) which drizzle-kit's CJS bundler can't resolve. The `db:*` scripts handle this.
+- **`timestamp` not `timestamptz`** — Drizzle uses `timestamp('col', { withTimezone: true })`. There is no `timestamptz` export.
+- **`hono/jwt` `verify()` takes 3 args** — `verify(token, secret, 'HS256')`. Omitting the algorithm throws `JwtAlgorithmRequired`.
+- **Postgres UNIQUE violation = error code `23505`** — catch this in services to return a `CONFLICT` response (see `src/services/relationships.ts`).
