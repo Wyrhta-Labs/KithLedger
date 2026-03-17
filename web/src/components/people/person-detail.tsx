@@ -38,6 +38,15 @@ export default function PersonDetail({ id }: PersonDetailProps) {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
   }
 
+  function isSafeImageUrl(url: string): boolean {
+    try {
+      const { protocol } = new URL(url);
+      return protocol === 'http:' || protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   const handleUpdate = async (values: PersonFormValues) => {
     await updateMutation.mutateAsync(values as UpdatePersonInput);
     toast('Person updated', 'success');
@@ -68,8 +77,13 @@ export default function PersonDetail({ id }: PersonDetailProps) {
 
       <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-start gap-6">
         <Avatar className="h-16 w-16">
-          {person.avatarUrl ? (
-            <img src={person.avatarUrl} alt={person.name} className="h-full w-full object-cover rounded-full" />
+          {person.avatarUrl && isSafeImageUrl(person.avatarUrl) ? (
+            <img
+              src={person.avatarUrl}
+              alt={person.name}
+              className="h-full w-full object-cover rounded-full"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <AvatarFallback className="text-xl">{getInitials(person.name)}</AvatarFallback>
           )}

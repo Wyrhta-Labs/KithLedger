@@ -19,9 +19,12 @@ export const jwtMiddleware: MiddlewareHandler = async (c, next) => {
     if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
       return err(c, 'UNAUTHORIZED', 'Token expired', 401);
     }
+    if (!payload.sub || typeof payload.sub !== 'string') {
+      return err(c, 'UNAUTHORIZED', 'Invalid token', 401);
+    }
     c.set('auth', {
       type: 'jwt' as const,
-      subject: typeof payload.sub === 'string' ? payload.sub : undefined,
+      subject: payload.sub,
     });
   } catch {
     return err(c, 'UNAUTHORIZED', 'Invalid token', 401);

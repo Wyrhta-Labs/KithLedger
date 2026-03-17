@@ -6,7 +6,9 @@ export const relationships = pgTable('relationships', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
+  /** Cascade delete: removing either person deletes this relationship */
   fromPersonId: uuid('from_person_id').notNull().references(() => people.id, { onDelete: 'cascade' }),
+  /** Cascade delete: removing either person deletes this relationship */
   toPersonId: uuid('to_person_id').notNull().references(() => people.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
   label: text('label'),

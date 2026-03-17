@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Structured audit logging** — `src/lib/logger.ts` emits JSON events to stdout for auth and key-lifecycle actions (`auth.token.success/failure`, `auth.key.created/revoked/used`)
+- **Security headers middleware** — `X-Content-Type-Options`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0`, `Referrer-Policy`, `Permissions-Policy`, and `Strict-Transport-Security` (non-localhost only)
+- **Request ID middleware** — Every request receives a UUID via `X-Request-Id` response header; propagated via `c.get('requestId')` for use in log events
+- **Rate limiting** — `POST /api/v1/auth/token` limited to 10 attempts per 15 minutes per IP; returns `429` with `Retry-After` header
+- **Configurable CORS** — `CORS_ORIGIN` env var (default `*`); set to a specific origin in production
+- **DB connection pool config** — `DB_POOL_MAX` env var (default `10`) passed to the postgres client
+- **Health check DB probe** — `GET /health` now executes `SELECT 1` and returns `{ db: "connected" }` or `503 { db: "disconnected" }` if the database is unreachable
+
+### Changed
+
+- **Timing-safe password comparison** — `POST /auth/token` now uses `crypto.timingSafeEqual` (SHA-256 digests) instead of `===` to prevent timing-based password enumeration
+- **JWT secret minimum raised** — `JWT_SECRET` must be at least 32 characters (was 16); process exits at startup if the constraint is not met
+- **JWT `sub` claim validated** — Tokens without a non-empty string `sub` are now rejected with `401`
+- **Body size limit** — All `/api/*` routes reject request bodies larger than 1 MB
+- **Trailing slash normalisation** — Requests with a trailing slash are redirected/normalised automatically
+- **Avatar URL restricted to http/https** — `javascript:` and other non-web protocols are rejected at the validator level (backend) and silently fall back to initials in the frontend
+- **Validation errors sanitised in production** — Zod field-level details are omitted from error responses when `NODE_ENV=production`
+- **`console.error` replaced with structured logger** — The error handler now calls `logError()` instead of logging raw error objects to stderr
+- **Graph CTE depth capped at 5** — Defence-in-depth beyond the validator's `max(3)` to prevent runaway recursive queries
+- **`.env.example` credentials replaced with placeholders** — Real `changeme` values removed; each var now has an instructional comment
+
+### Fixed
+
+- **Non-null assertions removed** — `row!` in `createPerson` and `createRelationship` replaced with explicit null checks and descriptive errors
+- **API key cleared on settings page unmount** — `useEffect` cleanup in `settings.tsx` clears the one-time raw key from React state when navigating away
+- **Avatar XSS guard in frontend** — `person-detail.tsx` validates `avatarUrl` protocol before rendering an `<img>` tag; unsafe URLs fall back to the initials avatar; `referrerPolicy="no-referrer"` added
+- **`person.tsx` non-null cast removed** — `id as string` replaced with a runtime guard that renders an error boundary for missing route params
+
+### Documentation
+
+- **Cascade delete comments** — JSDoc added to all `onDelete: 'cascade'` FK columns in schema files explaining what gets deleted
+- **Accepted security trade-offs documented** — Comments in `use-auth.ts` (localStorage JWT), `client.ts` (CSRF via Authorization header), and `types.ts` (manual schema duplication) explain the reasoning
+
+---
+
+### Added
+
 - **Web UI** — Full React SPA for managing all resources from the browser ([8ec44c2])
   - Dashboard with stats, upcoming reminders, recent interactions, birthday widget, and quick actions
   - People: searchable list with pagination, create/edit/delete, detail view with tabbed sections

@@ -60,7 +60,8 @@ export async function createRelationship(input: CreateRelationshipInput) {
         notes: input.notes ?? null,
       })
       .returning();
-    return row!;
+    if (!row) throw new Error('Failed to create relationship');
+    return row;
   } catch (error: unknown) {
     if (
       typeof error === 'object' &&
@@ -91,11 +92,13 @@ export async function deleteRelationship(id: string) {
 }
 
 export async function getPersonGraph(personId: string, depth: number) {
+  // Defense-in-depth: cap beyond the validator's max(3) to prevent runaway CTEs
+  const safeDepth = Math.min(depth, 5);
   // Verify root person exists
   const [root] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
   if (!root) return null;
 
-  if (depth === 1) {
+  if (safeDepth === 1) {
     // Simple join for depth 1
     const rels = await db.select().from(relationships).where(
       or(
@@ -135,7 +138,7 @@ export async function getPersonGraph(personId: string, depth: number) {
         r2.from_person_id IN (g.from_person_id, g.to_person_id)
         OR (r2.to_person_id IN (g.from_person_id, g.to_person_id) AND r2.is_mutual = true)
       )
-      WHERE g.depth < ${depth}
+      WHERE g.depth < ${safeDepth}
     )
     SELECT DISTINCT ON (id) * FROM graph
   `);

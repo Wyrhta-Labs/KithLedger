@@ -2,12 +2,38 @@ import { z } from 'zod';
 
 export const createPersonSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email().optional().nullable(),
+  email: z.string().email().max(254).optional().nullable(),
   phone: z.string().optional().nullable(),
-  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  birthday: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(
+      (val) => {
+        const date = new Date(val + 'T00:00:00Z');
+        return !isNaN(date.getTime()) && date <= new Date();
+      },
+      { message: 'Birthday must be a valid date and not in the future' }
+    )
+    .optional()
+    .nullable(),
   tags: z.array(z.string()).optional().default([]),
   notes: z.string().optional().nullable(),
-  avatarUrl: z.string().url().optional().nullable(),
+  avatarUrl: z
+    .string()
+    .url()
+    .refine(
+      (val) => {
+        try {
+          const { protocol } = new URL(val);
+          return protocol === 'http:' || protocol === 'https:';
+        } catch {
+          return false;
+        }
+      },
+      { message: 'Avatar URL must use http or https protocol' }
+    )
+    .optional()
+    .nullable(),
 });
 
 export const updatePersonSchema = createPersonSchema.partial();

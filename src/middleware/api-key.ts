@@ -4,6 +4,7 @@ import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import { hashKey } from '../lib/crypto.js';
 import { err } from '../lib/response.js';
+import { logEvent } from '../lib/logger.js';
 
 export const apiKeyMiddleware: MiddlewareHandler = async (c, next) => {
   const authorization = c.req.header('Authorization');
@@ -34,6 +35,14 @@ export const apiKeyMiddleware: MiddlewareHandler = async (c, next) => {
     .where(eq(apiKeys.id, key.id))
     .execute()
     .catch(() => {});
+
+  logEvent({
+    event: 'auth.key.used',
+    auth_type: 'api_key',
+    key_id: key.id,
+    key_name: key.name,
+    request_id: c.get('requestId'),
+  });
 
   c.set('auth', {
     type: 'api_key' as const,

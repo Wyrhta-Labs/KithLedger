@@ -1,11 +1,16 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
+import { trimTrailingSlash } from 'hono/trailing-slash';
 import { serveStatic } from '@hono/node-server/serve-static';
+import { config } from './config/env.js';
 import { mountRoutes } from './routes/index.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { securityHeaders } from './middleware/security-headers.js';
+import { requestId } from './middleware/request-id.js';
 
-// Extend Hono's variable type to include auth
+// Extend Hono's variable type to include auth and requestId
 declare module 'hono' {
   interface ContextVariableMap {
     auth: {
@@ -14,14 +19,19 @@ declare module 'hono' {
       apiKeyName?: string;
       subject?: string;
     };
+    requestId: string;
   }
 }
 
 export function createApp() {
   const app = new Hono();
 
+  app.use('*', trimTrailingSlash());
+  app.use('*', requestId);
+  app.use('*', securityHeaders);
   app.use('*', logger());
-  app.use('*', cors());
+  app.use('*', cors({ origin: config.corsOrigin }));
+  app.use('/api/*', bodyLimit({ maxSize: 1024 * 1024 })); // 1 MB
 
   mountRoutes(app);
 

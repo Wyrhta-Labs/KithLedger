@@ -72,7 +72,8 @@ export async function createPerson(input: CreatePersonInput) {
       avatarUrl: input.avatarUrl ?? null,
     })
     .returning();
-  return row!;
+  if (!row) throw new Error('Failed to create person');
+  return row;
 }
 
 export async function updatePerson(id: string, input: UpdatePersonInput) {

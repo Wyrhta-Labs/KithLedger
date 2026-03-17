@@ -1,5 +1,9 @@
 const BASE_URL = '/api/v1';
 
+// CSRF protection: using the Authorization request header (not cookies) for
+// authentication inherently mitigates CSRF — cross-origin requests cannot set
+// custom headers without a preflight that the server's CORS policy would block.
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,

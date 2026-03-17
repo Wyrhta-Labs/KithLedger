@@ -13,6 +13,11 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Security trade-off: the JWT is stored in localStorage rather than an
+// httpOnly cookie. This is an accepted trade-off for this single-user,
+// self-hosted app: there is no user-generated content that could introduce
+// XSS vectors, and React escapes all rendered text by default. The benefit
+// is simpler setup with no CSRF token requirement.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {
     const token = localStorage.getItem('kith_jwt');

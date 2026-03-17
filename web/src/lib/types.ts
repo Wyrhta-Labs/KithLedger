@@ -1,3 +1,7 @@
+// These types are manually duplicated from the backend Drizzle schema.
+// Future options to eliminate duplication: extract to a shared npm package,
+// or generate from an OpenAPI spec (e.g. openapi-typescript).
+
 export interface Person {
   id: string;
   createdAt: string;

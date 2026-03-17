@@ -6,6 +6,7 @@ export const reminders = pgTable('reminders', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`),
+  /** Cascade delete: removing the parent person deletes all their reminders */
   personId: uuid('person_id').notNull().references(() => people.id, { onDelete: 'cascade' }),
   dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
   title: text('title').notNull(),

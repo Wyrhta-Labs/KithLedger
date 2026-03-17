@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, Key, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,12 @@ export default function SettingsPage() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+
+  // Security: clear the raw key from memory when the component unmounts so it
+  // doesn't linger in the React state tree longer than necessary.
+  useEffect(() => {
+    return () => setCreatedKey(null);
+  }, []);
 
   const { data, isLoading } = useApiKeys();
   const createMutation = useCreateApiKey();
