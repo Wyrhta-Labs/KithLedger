@@ -29,6 +29,10 @@ interface PersonFormProps {
   isLoading?: boolean;
 }
 
+function optionalValue(value?: string) {
+  return value?.trim() ? value.trim() : undefined;
+}
+
 export default function PersonForm({ person, onSubmit, onCancel, isLoading }: PersonFormProps) {
   const { toast } = useToast();
   const {
@@ -53,7 +57,15 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
       const tags = values.tags
         ? values.tags.split(',').map((t) => t.trim()).filter(Boolean)
         : [];
-      const cleaned: PersonFormValues = { ...values, tags };
+      const cleaned: PersonFormValues = {
+        name: values.name.trim(),
+        email: optionalValue(values.email),
+        phone: optionalValue(values.phone),
+        birthday: optionalValue(values.birthday),
+        tags,
+        notes: optionalValue(values.notes),
+        avatarUrl: optionalValue(values.avatarUrl),
+      };
       await onSubmit(cleaned);
     } catch (e) {
       toast((e as Error).message ?? 'Failed to save person', 'error');
