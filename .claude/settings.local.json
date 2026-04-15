@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/ChristianFoellmann/AppData/Local/Temp/claude/C--Users-ChristianFoellmann-projects-open-source-KithLedger/a7fcad8a-22a9-41b3-9c66-153d00b32c27/tasks/**)",
+      "Bash(node:*)",
+      "Bash(DATABASE_URL=\"postgres://kith:changeme@localhost:5432/kithledger\" npx drizzle-kit generate 2>&1)",
+      "Bash(DATABASE_URL=\"postgres://kith:changeme@localhost:5432/kithledger\" npx tsx node_modules/drizzle-kit/bin.cjs generate --config drizzle.config.ts)",
+      "Bash(src/db/migrations/0000_blushing_blob.sql:*)",
+      "Read(//c/Users/ChristianFoellmann/.claude/projects/C--Users-ChristianFoellmann-projects-open-source-KithLedger/memory//**)",
+      "Read(//c/Users/ChristianFoellmann/.claude/projects/C--Users-ChristianFoellmann-projects-open-source-KithLedger/memory/**)",
+      "Bash(find /c/Users/ChristianFoellmann/projects/open-source/KithLedger/web -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(find /c/Users/ChristianFoellmann/projects/open-source/KithLedger/web/src -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))"
+    ]
+  }
+}
