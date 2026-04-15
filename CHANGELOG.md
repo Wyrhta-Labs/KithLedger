@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configurable CORS** — `CORS_ORIGIN` env var (default `*`); set to a specific origin in production
 - **DB connection pool config** — `DB_POOL_MAX` env var (default `10`) passed to the postgres client
 - **Health check DB probe** — `GET /health` now executes `SELECT 1` and returns `{ db: "connected" }` or `503 { db: "disconnected" }` if the database is unreachable
+- **Profile page and navigation updates** — Added a profile screen plus refreshed app-shell navigation for the web UI
 
 ### Changed
 
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`console.error` replaced with structured logger** — The error handler now calls `logError()` instead of logging raw error objects to stderr
 - **Graph CTE depth capped at 5** — Defence-in-depth beyond the validator's `max(3)` to prevent runaway recursive queries
 - **`.env.example` credentials replaced with placeholders** — Real `changeme` values removed; each var now has an instructional comment
+- **Vite dev proxy reads root env** — The web dev server now follows repo-level `API_PORT` and `VITE_API_PROXY_TARGET` values during local development
 
 ### Fixed
 
@@ -36,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API key cleared on settings page unmount** — `useEffect` cleanup in `settings.tsx` clears the one-time raw key from React state when navigating away
 - **Avatar XSS guard in frontend** — `person-detail.tsx` validates `avatarUrl` protocol before rendering an `<img>` tag; unsafe URLs fall back to the initials avatar; `referrerPolicy="no-referrer"` added
 - **`person.tsx` non-null cast removed** — `id as string` replaced with a runtime guard that renders an error boundary for missing route params
+- **Web form/API mismatches resolved** — Dashboard queries now respect API pagination limits, and interaction/reminder datetime fields are submitted in backend-valid ISO format
 
 ### Documentation
 
