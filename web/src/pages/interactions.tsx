@@ -25,7 +25,7 @@ export default function InteractionsPage() {
     limit,
     offset: page * limit,
   });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: 100 });
   const createMutation = useCreateInteraction();
   const deleteMutation = useDeleteInteraction();
 

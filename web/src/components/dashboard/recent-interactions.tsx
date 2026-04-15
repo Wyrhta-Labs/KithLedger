@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 
 export default function RecentInteractions() {
   const { data, isLoading } = useInteractions({ limit: 8 });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: 100 });
 
   const interactions = data?.data ?? [];
   const people = peopleData?.data ?? [];

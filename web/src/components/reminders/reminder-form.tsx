@@ -29,6 +29,16 @@ interface ReminderFormProps {
   isLoading?: boolean;
 }
 
+function toLocalDateTimeInputValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function fromLocalDateTimeInputValue(value: string) {
+  return new Date(value).toISOString();
+}
+
 export default function ReminderForm({
   reminder,
   defaultPersonId,
@@ -42,7 +52,7 @@ export default function ReminderForm({
     resolver: zodResolver(schema),
     defaultValues: {
       personId: reminder?.personId ?? defaultPersonId ?? '',
-      dueAt: reminder?.dueAt ? reminder.dueAt.slice(0, 16) : '',
+      dueAt: reminder?.dueAt ? toLocalDateTimeInputValue(reminder.dueAt) : '',
       title: reminder?.title ?? '',
       notes: reminder?.notes ?? '',
       recurrence: reminder?.recurrence ?? '',
@@ -53,6 +63,7 @@ export default function ReminderForm({
     try {
       const cleaned = {
         ...values,
+        dueAt: fromLocalDateTimeInputValue(values.dueAt),
         personId: values.personId || undefined,
         notes: values.notes || undefined,
         recurrence: values.recurrence || undefined,

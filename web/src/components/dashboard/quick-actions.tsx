@@ -17,7 +17,7 @@ import type { CreateReminderInput } from '@/api/reminders';
 export default function QuickActions() {
   const [modal, setModal] = useState<'person' | 'interaction' | 'reminder' | null>(null);
   const { toast } = useToast();
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: 100 });
   const createPerson = useCreatePerson();
   const createInteraction = useCreateInteraction();
   const createReminder = useCreateReminder();

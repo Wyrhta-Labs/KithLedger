@@ -39,6 +39,16 @@ interface InteractionFormProps {
   isLoading?: boolean;
 }
 
+function toLocalDateTimeInputValue(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function fromLocalDateTimeInputValue(value: string) {
+  return new Date(value).toISOString();
+}
+
 export default function InteractionForm({
   interaction,
   defaultPersonId,
@@ -53,8 +63,8 @@ export default function InteractionForm({
     defaultValues: {
       personId: interaction?.personId ?? defaultPersonId ?? '',
       occurredAt: interaction?.occurredAt
-        ? interaction.occurredAt.slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
+        ? toLocalDateTimeInputValue(interaction.occurredAt)
+        : toLocalDateTimeInputValue(new Date().toISOString()),
       type: interaction?.type ?? 'meeting',
       channel: interaction?.channel ?? '',
       notes: interaction?.notes ?? '',
@@ -66,7 +76,7 @@ export default function InteractionForm({
     try {
       const cleaned: CleanInteractionFormValues = {
         personId: values.personId,
-        occurredAt: values.occurredAt,
+        occurredAt: fromLocalDateTimeInputValue(values.occurredAt),
         type: values.type,
         channel: values.channel || undefined,
         notes: values.notes || undefined,

@@ -18,7 +18,7 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
   const { toast } = useToast();
 
   const { data, isLoading } = useRelationships({ person_id: personId });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: 100 });
   const createMutation = useCreateRelationship();
   const deleteMutation = useDeleteRelationship();
 

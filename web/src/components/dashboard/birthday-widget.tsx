@@ -5,7 +5,7 @@ import { format, parseISO, setYear } from 'date-fns';
 import { isUpcomingInDays } from '@/lib/format';
 
 export default function BirthdayWidget() {
-  const { data } = usePeople({ limit: 200 });
+  const { data } = usePeople({ limit: 100 });
   const people = data?.data ?? [];
 
   const upcoming = people

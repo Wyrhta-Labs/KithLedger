@@ -3,12 +3,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { usePeople } from '@/hooks/use-people';
 import { useInteractions } from '@/hooks/use-interactions';
 import { useReminders } from '@/hooks/use-reminders';
-import { startOfMonth, formatISO } from 'date-fns';
+import { startOfMonth } from 'date-fns';
 
 export default function StatsCards() {
   const { data: peopleData } = usePeople({ limit: 1 });
   const { data: interactionsData } = useInteractions({
-    from: formatISO(startOfMonth(new Date())),
+    from: startOfMonth(new Date()).toISOString(),
     limit: 1,
   });
   const { data: remindersData } = useReminders({ status: 'pending', limit: 1 });
