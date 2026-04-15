@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { useInteractions, useCreateInteraction, useUpdateInteraction, useDeleteInteraction } from '@/hooks/use-interactions';
 import { usePeople } from '@/hooks/use-people';
+import { useSettingValues } from '@/hooks/use-setting-values';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime, interactionTypeLabel, sentimentLabel } from '@/lib/format';
+import { buildSettingValueLabelMap } from '@/lib/setting-values';
 import { cn } from '@/lib/utils';
 import InteractionForm, { type CleanInteractionFormValues } from './interaction-form';
 import type { Interaction } from '@/lib/types';
@@ -29,12 +31,14 @@ export default function InteractionList({ personId }: InteractionListProps) {
 
   const { data, isLoading } = useInteractions({ person_id: personId });
   const { data: peopleData } = usePeople({ limit: 100 });
+  const { data: settingValuesData } = useSettingValues();
   const createMutation = useCreateInteraction();
   const updateMutation = useUpdateInteraction(editInteraction?.id ?? '');
   const deleteMutation = useDeleteInteraction();
 
   const interactions = data?.data ?? [];
   const peopleOptions = peopleData?.data?.map((p) => ({ id: p.id, name: p.name })) ?? [];
+  const typeLabels = buildSettingValueLabelMap(settingValuesData?.data ?? [])['interaction.type'] ?? {};
 
   const handleCreate = async (values: CleanInteractionFormValues) => {
     await createMutation.mutateAsync(values as CreateInteractionInput);
@@ -80,7 +84,7 @@ export default function InteractionList({ personId }: InteractionListProps) {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="secondary">{interactionTypeLabel(interaction.type)}</Badge>
+                    <Badge variant="secondary">{interactionTypeLabel(interaction.type, typeLabels)}</Badge>
                     {interaction.sentiment && (
                       <Badge variant={interaction.sentiment === 'positive' ? 'success' : interaction.sentiment === 'negative' ? 'destructive' : 'outline'}>
                         {sentimentLabel(interaction.sentiment)}

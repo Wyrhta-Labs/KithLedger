@@ -8,8 +8,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useApiKeys, useCreateApiKey, useRevokeApiKey } from '@/hooks/use-api-keys';
+import { useSettingValues } from '@/hooks/use-setting-values';
 import { useToast } from '@/components/ui/toast';
 import { formatDate } from '@/lib/format';
+import { getSettingValuesForCategory } from '@/lib/setting-values';
+import SettingValuesCard from '@/components/settings/setting-values-card';
 
 export default function SettingsPage() {
   const [showCreate, setShowCreate] = useState(false);
@@ -26,10 +29,14 @@ export default function SettingsPage() {
   }, []);
 
   const { data, isLoading } = useApiKeys();
+  const { data: settingValuesData, isLoading: isLoadingSettingValues } = useSettingValues();
   const createMutation = useCreateApiKey();
   const revokeMutation = useRevokeApiKey();
 
   const apiKeys = data?.data ?? [];
+  const settingValues = settingValuesData?.data ?? [];
+  const interactionTypeValues = getSettingValuesForCategory(settingValues, 'interaction.type');
+  const relationshipTypeValues = getSettingValuesForCategory(settingValues, 'relationship.type');
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) return;
@@ -58,7 +65,18 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
+      {isLoadingSettingValues ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-gray-500">Loading settings…</CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <SettingValuesCard category="interaction.type" values={interactionTypeValues} />
+          <SettingValuesCard category="relationship.type" values={relationshipTypeValues} />
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

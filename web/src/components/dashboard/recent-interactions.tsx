@@ -1,15 +1,19 @@
 import { Link } from '@tanstack/react-router';
 import { useInteractions } from '@/hooks/use-interactions';
 import { usePeople } from '@/hooks/use-people';
+import { useSettingValues } from '@/hooks/use-setting-values';
 import { formatRelative, interactionTypeLabel } from '@/lib/format';
+import { buildSettingValueLabelMap } from '@/lib/setting-values';
 import { Badge } from '@/components/ui/badge';
 
 export default function RecentInteractions() {
   const { data, isLoading } = useInteractions({ limit: 8 });
   const { data: peopleData } = usePeople({ limit: 100 });
+  const { data: settingValuesData } = useSettingValues();
 
   const interactions = data?.data ?? [];
   const people = peopleData?.data ?? [];
+  const typeLabels = buildSettingValueLabelMap(settingValuesData?.data ?? [])['interaction.type'] ?? {};
   const getPerson = (id: string) => people.find((p) => p.id === id);
 
   return (
@@ -26,7 +30,7 @@ export default function RecentInteractions() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-900 truncate">{person?.name ?? 'Unknown'}</span>
-                  <Badge variant="secondary" className="text-xs shrink-0">{interactionTypeLabel(i.type)}</Badge>
+                  <Badge variant="secondary" className="text-xs shrink-0">{interactionTypeLabel(i.type, typeLabels)}</Badge>
                 </div>
                 {i.notes && <p className="text-xs text-gray-500 truncate mt-0.5">{i.notes}</p>}
               </div>

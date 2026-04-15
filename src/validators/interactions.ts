@@ -1,13 +1,12 @@
 import { z } from 'zod';
 
-const INTERACTION_TYPES = ['meeting', 'call', 'message', 'email', 'other'] as const;
 const CHANNELS = ['in-person', 'phone', 'sms', 'email', 'video', 'social'] as const;
 const SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
 
 export const createInteractionSchema = z.object({
   personId: z.string().uuid(),
   occurredAt: z.string().datetime(),
-  type: z.enum(INTERACTION_TYPES),
+  type: z.string().trim().min(1),
   channel: z.enum(CHANNELS).optional().nullable(),
   notes: z.string().optional().nullable(),
   sentiment: z.enum(SENTIMENTS).optional().nullable(),
@@ -17,7 +16,7 @@ export const updateInteractionSchema = createInteractionSchema.partial().omit({ 
 
 export const listInteractionsQuerySchema = z.object({
   person_id: z.string().uuid().optional(),
-  type: z.enum(INTERACTION_TYPES).optional(),
+  type: z.string().trim().min(1).optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),

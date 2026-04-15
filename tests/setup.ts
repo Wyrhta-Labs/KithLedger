@@ -1,10 +1,12 @@
 import { beforeAll, afterAll, beforeEach } from 'vitest';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { db } from '../src/db/index.js';
-import { people, interactions, reminders, relationships, apiKeys } from '../src/db/schema/index.js';
+import { people, interactions, reminders, relationships, apiKeys, settingValues } from '../src/db/schema/index.js';
+import { seedDefaultSettingValues } from '../src/services/setting-values.js';
 
 beforeAll(async () => {
   await migrate(db, { migrationsFolder: './src/db/migrations' });
+  await seedDefaultSettingValues();
 });
 
 beforeEach(async () => {
@@ -14,4 +16,6 @@ beforeEach(async () => {
   await db.delete(relationships);
   await db.delete(people);
   await db.delete(apiKeys);
+  await db.delete(settingValues);
+  await seedDefaultSettingValues();
 });

@@ -14,7 +14,6 @@ export const interactions = pgTable('interactions', {
   notes: text('notes'),
   sentiment: text('sentiment'),
 }, (table) => [
-  check('interactions_type_check', sql`${table.type} IN ('meeting', 'call', 'message', 'email', 'other')`),
   check('interactions_sentiment_check', sql`${table.sentiment} IS NULL OR ${table.sentiment} IN ('positive', 'neutral', 'negative')`),
 ]);
 

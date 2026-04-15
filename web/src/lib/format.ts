@@ -1,4 +1,5 @@
 import { format, formatDistanceToNow, isPast, isToday, isTomorrow, parseISO, isWithinInterval, addDays } from 'date-fns';
+import { humanizeSettingValue } from './setting-values';
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
@@ -74,15 +75,16 @@ export function isUpcomingInDays(dateStr: string | null | undefined, days: numbe
   }
 }
 
-export function interactionTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
+export function interactionTypeLabel(type: string, labels?: Record<string, string>): string {
+  if (labels?.[type]) return labels[type];
+  const fallbackLabels: Record<string, string> = {
     meeting: 'Meeting',
     call: 'Call',
     message: 'Message',
     email: 'Email',
     other: 'Other',
   };
-  return labels[type] ?? type;
+  return fallbackLabels[type] ?? humanizeSettingValue(type);
 }
 
 export function sentimentLabel(sentiment: string | null | undefined): string {
@@ -95,15 +97,16 @@ export function sentimentLabel(sentiment: string | null | undefined): string {
   return labels[sentiment] ?? sentiment;
 }
 
-export function relationshipTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
+export function relationshipTypeLabel(type: string, labels?: Record<string, string>): string {
+  if (labels?.[type]) return labels[type];
+  const fallbackLabels: Record<string, string> = {
     friend: 'Friend',
     family: 'Family',
     colleague: 'Colleague',
     acquaintance: 'Acquaintance',
     other: 'Other',
   };
-  return labels[type] ?? type;
+  return fallbackLabels[type] ?? humanizeSettingValue(type);
 }
 
 export function reminderStatusLabel(status: string): string {

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,13 +8,15 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
-import { INTERACTION_TYPES, SENTIMENT_OPTIONS } from '@/lib/constants';
+import { SENTIMENT_OPTIONS } from '@/lib/constants';
+import { useSettingValues } from '@/hooks/use-setting-values';
+import { getActiveSettingValues } from '@/lib/setting-values';
 import type { Interaction } from '@/lib/types';
 
 const schema = z.object({
   personId: z.string().min(1, 'Person is required'),
   occurredAt: z.string().min(1, 'Date is required'),
-  type: z.enum(['meeting', 'call', 'message', 'email', 'other']),
+  type: z.string().min(1, 'Type is required'),
   channel: z.string().optional(),
   notes: z.string().optional(),
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional().or(z.literal('')),
@@ -24,7 +27,7 @@ type FormValues = z.infer<typeof schema>;
 export interface CleanInteractionFormValues {
   personId: string;
   occurredAt: string;
-  type: 'meeting' | 'call' | 'message' | 'email' | 'other';
+  type: string;
   channel?: string;
   notes?: string;
   sentiment?: 'positive' | 'neutral' | 'negative';
@@ -58,19 +61,27 @@ export default function InteractionForm({
   isLoading,
 }: InteractionFormProps) {
   const { toast } = useToast();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { data: settingValuesData } = useSettingValues();
+  const interactionTypes = getActiveSettingValues(settingValuesData?.data ?? [], 'interaction.type');
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       personId: interaction?.personId ?? defaultPersonId ?? '',
       occurredAt: interaction?.occurredAt
         ? toLocalDateTimeInputValue(interaction.occurredAt)
         : toLocalDateTimeInputValue(new Date().toISOString()),
-      type: interaction?.type ?? 'meeting',
+      type: interaction?.type ?? interactionTypes[0]?.value ?? '',
       channel: interaction?.channel ?? '',
       notes: interaction?.notes ?? '',
       sentiment: interaction?.sentiment ?? '',
     },
   });
+
+  useEffect(() => {
+    if (!interaction && !getValues('type') && interactionTypes[0]?.value) {
+      setValue('type', interactionTypes[0].value, { shouldValidate: true });
+    }
+  }, [getValues, interaction, interactionTypes, setValue]);
 
   const handleFormSubmit = async (values: FormValues) => {
     try {
@@ -111,10 +122,12 @@ export default function InteractionForm({
         <div className="space-y-1">
           <Label htmlFor="type">Type *</Label>
           <Select id="type" {...register('type')}>
-            {INTERACTION_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            <option value="">Select a type…</option>
+            {interactionTypes.map((t) => (
+              <option key={t.id} value={t.value}>{t.label}</option>
             ))}
           </Select>
+          {errors.type && <p className="text-xs text-red-600">{errors.type.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">

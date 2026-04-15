@@ -27,6 +27,9 @@ interactionsRouter.post('/', async (c) => {
     if (e instanceof Error && e.message === 'PERSON_NOT_FOUND') {
       return err(c, 'NOT_FOUND', 'Person not found', 404);
     }
+    if (e instanceof Error && e.message === 'INVALID_SETTING_VALUE') {
+      return err(c, 'VALIDATION_ERROR', 'Interaction type is not an active configured value', 400);
+    }
     throw e;
   }
 });
@@ -41,9 +44,16 @@ interactionsRouter.patch('/:id', async (c) => {
   const body = updateInteractionSchema.safeParse(await c.req.json());
   if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
 
-  const interaction = await service.updateInteraction(c.req.param('id'), body.data);
-  if (!interaction) return err(c, 'NOT_FOUND', 'Interaction not found', 404);
-  return ok(c, interaction);
+  try {
+    const interaction = await service.updateInteraction(c.req.param('id'), body.data);
+    if (!interaction) return err(c, 'NOT_FOUND', 'Interaction not found', 404);
+    return ok(c, interaction);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'INVALID_SETTING_VALUE') {
+      return err(c, 'VALIDATION_ERROR', 'Interaction type is not an active configured value', 400);
+    }
+    throw e;
+  }
 });
 
 interactionsRouter.delete('/:id', async (c) => {

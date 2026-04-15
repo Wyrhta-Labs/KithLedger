@@ -21,7 +21,7 @@ export interface Interaction {
   updatedAt: string;
   personId: string;
   occurredAt: string;
-  type: 'meeting' | 'call' | 'message' | 'email' | 'other';
+  type: string;
   channel: string | null;
   notes: string | null;
   sentiment: 'positive' | 'neutral' | 'negative' | null;
@@ -48,10 +48,22 @@ export interface Relationship {
   updatedAt: string;
   fromPersonId: string;
   toPersonId: string;
-  type: 'friend' | 'family' | 'colleague' | 'acquaintance' | 'other';
+  type: string;
   label: string | null;
   isMutual: boolean;
   notes: string | null;
+}
+
+export interface SettingValue {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  category: 'interaction.type' | 'relationship.type';
+  value: string;
+  label: string;
+  sortOrder: number;
+  isActive: boolean;
+  usageCount: number;
 }
 
 export interface ApiKey {

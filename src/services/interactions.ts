@@ -2,6 +2,7 @@ import { db } from '../db/index.js';
 import { interactions, people } from '../db/schema/index.js';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import type { CreateInteractionInput, UpdateInteractionInput, ListInteractionsQuery } from '../validators/interactions.js';
+import { assertActiveSettingValueExists } from './setting-values.js';
 
 export async function listInteractions(query: ListInteractionsQuery) {
   const conditions = [];
@@ -39,6 +40,7 @@ export async function createInteraction(input: CreateInteractionInput) {
   // Verify person exists
   const [person] = await db.select().from(people).where(eq(people.id, input.personId)).limit(1);
   if (!person) throw new Error('PERSON_NOT_FOUND');
+  await assertActiveSettingValueExists('interaction.type', input.type);
 
   const [row] = await db
     .insert(interactions)
@@ -55,6 +57,10 @@ export async function createInteraction(input: CreateInteractionInput) {
 }
 
 export async function updateInteraction(id: string, input: UpdateInteractionInput) {
+  if (input.type !== undefined) {
+    await assertActiveSettingValueExists('interaction.type', input.type);
+  }
+
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (input.occurredAt !== undefined) updates['occurredAt'] = new Date(input.occurredAt);
   if (input.type !== undefined) updates['type'] = input.type;

@@ -4,3 +4,4 @@ export * from './interactions';
 export * from './reminders';
 export * from './relationships';
 export * from './api-keys';
+export * from './setting-values';

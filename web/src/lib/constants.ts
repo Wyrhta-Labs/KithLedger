@@ -9,28 +9,13 @@ export const QUERY_KEYS = {
   relationships: ['relationships'] as const,
   relationship: (id: string) => ['relationships', id] as const,
   apiKeys: ['apiKeys'] as const,
+  settingValues: ['settingValues'] as const,
 } as const;
-
-export const INTERACTION_TYPES = [
-  { value: 'meeting', label: 'Meeting' },
-  { value: 'call', label: 'Call' },
-  { value: 'message', label: 'Message' },
-  { value: 'email', label: 'Email' },
-  { value: 'other', label: 'Other' },
-] as const;
 
 export const SENTIMENT_OPTIONS = [
   { value: 'positive', label: 'Positive' },
   { value: 'neutral', label: 'Neutral' },
   { value: 'negative', label: 'Negative' },
-] as const;
-
-export const RELATIONSHIP_TYPES = [
-  { value: 'friend', label: 'Friend' },
-  { value: 'family', label: 'Family' },
-  { value: 'colleague', label: 'Colleague' },
-  { value: 'acquaintance', label: 'Acquaintance' },
-  { value: 'other', label: 'Other' },
 ] as const;
 
 export const REMINDER_STATUSES = [

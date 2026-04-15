@@ -16,7 +16,6 @@ export const relationships = pgTable('relationships', {
   notes: text('notes'),
 }, (table) => [
   unique().on(table.fromPersonId, table.toPersonId),
-  check('relationships_type_check', sql`${table.type} IN ('friend', 'family', 'colleague', 'acquaintance', 'other')`),
   check('relationships_no_self_link', sql`${table.fromPersonId} <> ${table.toPersonId}`),
 ]);
 

@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import { Badge } from '@/components/ui/badge';
 import { useInteractions, useCreateInteraction, useDeleteInteraction } from '@/hooks/use-interactions';
 import { usePeople } from '@/hooks/use-people';
+import { useSettingValues } from '@/hooks/use-setting-values';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime, interactionTypeLabel, sentimentLabel } from '@/lib/format';
-import { INTERACTION_TYPES } from '@/lib/constants';
+import { buildSettingValueLabelMap, getActiveSettingValues } from '@/lib/setting-values';
 import InteractionForm, { type CleanInteractionFormValues } from '@/components/interactions/interaction-form';
 import type { Interaction } from '@/lib/types';
 import type { CreateInteractionInput } from '@/api/interactions';
@@ -26,12 +27,16 @@ export default function InteractionsPage() {
     offset: page * limit,
   });
   const { data: peopleData } = usePeople({ limit: 100 });
+  const { data: settingValuesData } = useSettingValues();
   const createMutation = useCreateInteraction();
   const deleteMutation = useDeleteInteraction();
 
   const interactions = data?.data ?? [];
   const total = data?.meta?.total ?? 0;
   const people = peopleData?.data ?? [];
+  const settingValues = settingValuesData?.data ?? [];
+  const interactionTypes = getActiveSettingValues(settingValues, 'interaction.type');
+  const typeLabels = buildSettingValueLabelMap(settingValues)['interaction.type'] ?? {};
   const getPerson = (id: string) => people.find((p) => p.id === id);
   const peopleOptions = people.map((p) => ({ id: p.id, name: p.name }));
 
@@ -63,8 +68,8 @@ export default function InteractionsPage() {
             className="w-40"
           >
             <option value="">All types</option>
-            {INTERACTION_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            {interactionTypes.map((t) => (
+              <option key={t.id} value={t.value}>{t.label}</option>
             ))}
           </Select>
         </div>
@@ -87,7 +92,7 @@ export default function InteractionsPage() {
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900">{person?.name ?? 'Unknown'}</span>
-                      <Badge variant="secondary">{interactionTypeLabel(i.type)}</Badge>
+                      <Badge variant="secondary">{interactionTypeLabel(i.type, typeLabels)}</Badge>
                       {i.sentiment && (
                         <Badge variant={sentimentBadgeVariant(i.sentiment)}>
                           {sentimentLabel(i.sentiment)}

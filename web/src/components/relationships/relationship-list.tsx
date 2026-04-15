@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { useRelationships, useCreateRelationship, useDeleteRelationship } from '@/hooks/use-relationships';
 import { usePeople } from '@/hooks/use-people';
+import { useSettingValues } from '@/hooks/use-setting-values';
 import { useToast } from '@/components/ui/toast';
 import { relationshipTypeLabel } from '@/lib/format';
+import { buildSettingValueLabelMap } from '@/lib/setting-values';
 import RelationshipForm from './relationship-form';
 
 interface RelationshipListProps {
@@ -19,11 +21,13 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
 
   const { data, isLoading } = useRelationships({ person_id: personId });
   const { data: peopleData } = usePeople({ limit: 100 });
+  const { data: settingValuesData } = useSettingValues();
   const createMutation = useCreateRelationship();
   const deleteMutation = useDeleteRelationship();
 
   const relationships = data?.data ?? [];
   const peopleOptions = peopleData?.data?.map((p) => ({ id: p.id, name: p.name })) ?? [];
+  const typeLabels = buildSettingValueLabelMap(settingValuesData?.data ?? [])['relationship.type'] ?? {};
 
   const getPerson = (id: string) => peopleOptions.find((p) => p.id === id);
 
@@ -66,7 +70,7 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
                     <ArrowRight className="h-4 w-4 text-gray-400" />
                   )}
                   <span className="font-medium text-sm text-gray-900">{toPerson?.name ?? rel.toPersonId}</span>
-                  <Badge variant="secondary">{relationshipTypeLabel(rel.type)}</Badge>
+                  <Badge variant="secondary">{relationshipTypeLabel(rel.type, typeLabels)}</Badge>
                   {rel.label && <span className="text-xs text-gray-500 italic">"{rel.label}"</span>}
                 </div>
                 <Button

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,13 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
-import { RELATIONSHIP_TYPES } from '@/lib/constants';
+import { useSettingValues } from '@/hooks/use-setting-values';
+import { getActiveSettingValues } from '@/lib/setting-values';
 import type { Relationship } from '@/lib/types';
 
 const schema = z.object({
   fromPersonId: z.string().min(1, 'From person is required'),
   toPersonId: z.string().min(1, 'To person is required'),
-  type: z.enum(['friend', 'family', 'colleague', 'acquaintance', 'other']),
+  type: z.string().min(1, 'Type is required'),
   label: z.string().optional(),
   isMutual: z.boolean().default(true),
   notes: z.string().optional(),
@@ -39,17 +41,25 @@ export default function RelationshipForm({
   isLoading,
 }: RelationshipFormProps) {
   const { toast } = useToast();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { data: settingValuesData } = useSettingValues();
+  const relationshipTypes = getActiveSettingValues(settingValuesData?.data ?? [], 'relationship.type');
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       fromPersonId: relationship?.fromPersonId ?? defaultFromPersonId ?? '',
       toPersonId: relationship?.toPersonId ?? '',
-      type: relationship?.type ?? 'friend',
+      type: relationship?.type ?? relationshipTypes[0]?.value ?? '',
       label: relationship?.label ?? '',
       isMutual: relationship?.isMutual ?? true,
       notes: relationship?.notes ?? '',
     },
   });
+
+  useEffect(() => {
+    if (!relationship && !getValues('type') && relationshipTypes[0]?.value) {
+      setValue('type', relationshipTypes[0].value, { shouldValidate: true });
+    }
+  }, [getValues, relationship, relationshipTypes, setValue]);
 
   const handleFormSubmit = async (values: FormValues) => {
     try {
@@ -92,10 +102,12 @@ export default function RelationshipForm({
         <div className="space-y-1">
           <Label htmlFor="type">Type *</Label>
           <Select id="type" {...register('type')}>
-            {RELATIONSHIP_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+            <option value="">Select a type…</option>
+            {relationshipTypes.map((t) => (
+              <option key={t.id} value={t.value}>{t.label}</option>
             ))}
           </Select>
+          {errors.type && <p className="text-xs text-red-600">{errors.type.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="label">Label (optional)</Label>

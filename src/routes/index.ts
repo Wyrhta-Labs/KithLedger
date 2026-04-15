@@ -5,6 +5,7 @@ import { peopleRouter } from './people.js';
 import { interactionsRouter } from './interactions.js';
 import { remindersRouter } from './reminders.js';
 import { relationshipsRouter } from './relationships.js';
+import { settingsRouter } from './settings.js';
 import * as relationshipService from '../services/relationships.js';
 import { requireAuth } from '../middleware/auth.js';
 import { graphQuerySchema } from '../validators/relationships.js';
@@ -17,6 +18,7 @@ export function mountRoutes(app: Hono) {
   app.route('/api/v1/interactions', interactionsRouter);
   app.route('/api/v1/reminders', remindersRouter);
   app.route('/api/v1/relationships', relationshipsRouter);
+  app.route('/api/v1/settings', settingsRouter);
 
   // Graph endpoint nested under people
   app.get('/api/v1/people/:id/graph', requireAuth, async (c) => {

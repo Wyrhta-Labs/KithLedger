@@ -3,3 +3,4 @@ export * from './interactions.js';
 export * from './reminders.js';
 export * from './relationships.js';
 export * from './api-keys.js';
+export * from './setting-values.js';

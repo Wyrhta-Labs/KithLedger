@@ -11,14 +11,14 @@ export interface ListRelationshipsParams {
 export interface CreateRelationshipInput {
   fromPersonId: string;
   toPersonId: string;
-  type: 'friend' | 'family' | 'colleague' | 'acquaintance' | 'other';
+  type: string;
   label?: string;
   isMutual?: boolean;
   notes?: string;
 }
 
 export interface UpdateRelationshipInput {
-  type?: 'friend' | 'family' | 'colleague' | 'acquaintance' | 'other';
+  type?: string;
   label?: string | null;
   isMutual?: boolean;
   notes?: string | null;

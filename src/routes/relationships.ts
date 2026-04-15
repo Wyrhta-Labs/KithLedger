@@ -31,6 +31,9 @@ relationshipsRouter.post('/', async (c) => {
       if (e.message === 'RELATIONSHIP_EXISTS') {
         return err(c, 'CONFLICT', 'Relationship already exists between these people', 409);
       }
+      if (e.message === 'INVALID_SETTING_VALUE') {
+        return err(c, 'VALIDATION_ERROR', 'Relationship type is not an active configured value', 400);
+      }
     }
     throw e;
   }
@@ -46,9 +49,16 @@ relationshipsRouter.patch('/:id', async (c) => {
   const body = updateRelationshipSchema.safeParse(await c.req.json());
   if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
 
-  const relationship = await service.updateRelationship(c.req.param('id'), body.data);
-  if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
-  return ok(c, relationship);
+  try {
+    const relationship = await service.updateRelationship(c.req.param('id'), body.data);
+    if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
+    return ok(c, relationship);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'INVALID_SETTING_VALUE') {
+      return err(c, 'VALIDATION_ERROR', 'Relationship type is not an active configured value', 400);
+    }
+    throw e;
+  }
 });
 
 relationshipsRouter.delete('/:id', async (c) => {

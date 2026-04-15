@@ -2,15 +2,11 @@ import { useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from '@tanstack/react-router';
 import { usePersonGraph } from '@/hooks/use-people';
+import { useSettingValues } from '@/hooks/use-setting-values';
+import { buildSettingValueLabelMap, getSettingValuesForCategory, humanizeSettingValue } from '@/lib/setting-values';
 import type { GraphEdge, GraphNode } from '@/lib/types';
 
-const TYPE_COLORS: Record<string, string> = {
-  friend: '#3b82f6',
-  family: '#10b981',
-  colleague: '#f59e0b',
-  acquaintance: '#8b5cf6',
-  other: '#6b7280',
-};
+const GRAPH_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#6b7280'];
 
 interface GraphViewProps {
   personId: string;
@@ -20,6 +16,7 @@ interface GraphViewProps {
 
 export default function GraphView({ personId, depth = 2, height = 400 }: GraphViewProps) {
   const { data, isLoading } = usePersonGraph(personId, depth);
+  const { data: settingValuesData } = useSettingValues();
   const navigate = useNavigate();
 
   const handleNodeClick = useCallback(
@@ -35,6 +32,12 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
   if (!data?.data) return <div className="py-8 text-center text-gray-500">No graph data.</div>;
 
   const { nodes, edges } = data.data;
+  const relationshipTypes = getSettingValuesForCategory(settingValuesData?.data ?? [], 'relationship.type');
+  const relationshipLabels = buildSettingValueLabelMap(settingValuesData?.data ?? [])['relationship.type'] ?? {};
+  const typeColors = relationshipTypes.reduce<Record<string, string>>((acc, type, index) => {
+    acc[type.value] = GRAPH_COLORS[index % GRAPH_COLORS.length];
+    return acc;
+  }, {});
   const nodeIds = new Set(nodes.map((node) => node.id));
   const safeEdges = edges.filter(
     (edge): edge is GraphEdge =>
@@ -55,7 +58,7 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
       source: e.source,
       target: e.target,
       type: e.type,
-      color: TYPE_COLORS[e.type] ?? '#6b7280',
+      color: typeColors[e.type] ?? '#6b7280',
     })),
   };
 
@@ -83,7 +86,7 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
           ctx.fillStyle =
             isRoot
               ? '#1d4ed8'
-              : (TYPE_COLORS[safeEdges.find((edge) => edge.source === n.id || edge.target === n.id)?.type ?? ''] ?? '#3b82f6');
+              : (typeColors[safeEdges.find((edge) => edge.source === n.id || edge.target === n.id)?.type ?? ''] ?? '#3b82f6');
           ctx.fill();
           if (globalScale >= 1) {
             const fontSize = 12 / globalScale;
@@ -96,10 +99,10 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
         }}
       />
       <div className="px-4 py-3 border-t border-gray-100 flex flex-wrap gap-3 text-xs text-gray-500">
-        {Object.entries(TYPE_COLORS).map(([type, color]) => (
-          <span key={type} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: color }} />
-            {type}
+        {(relationshipTypes.length > 0 ? relationshipTypes : [{ value: 'other', label: 'Other' } as const]).map((type, index) => (
+          <span key={type.value} className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: typeColors[type.value] ?? GRAPH_COLORS[index % GRAPH_COLORS.length] }} />
+            {relationshipLabels[type.value] ?? humanizeSettingValue(type.value)}
           </span>
         ))}
       </div>

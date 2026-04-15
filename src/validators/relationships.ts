@@ -1,11 +1,9 @@
 import { z } from 'zod';
 
-const RELATIONSHIP_TYPES = ['friend', 'family', 'colleague', 'acquaintance', 'other'] as const;
-
 export const createRelationshipSchema = z.object({
   fromPersonId: z.string().uuid(),
   toPersonId: z.string().uuid(),
-  type: z.enum(RELATIONSHIP_TYPES),
+  type: z.string().trim().min(1),
   label: z.string().optional().nullable(),
   isMutual: z.boolean().optional().default(true),
   notes: z.string().optional().nullable(),
@@ -15,7 +13,7 @@ export const createRelationshipSchema = z.object({
 });
 
 export const updateRelationshipSchema = z.object({
-  type: z.enum(RELATIONSHIP_TYPES).optional(),
+  type: z.string().trim().min(1).optional(),
   label: z.string().optional().nullable(),
   isMutual: z.boolean().optional(),
   notes: z.string().optional().nullable(),
@@ -23,7 +21,7 @@ export const updateRelationshipSchema = z.object({
 
 export const listRelationshipsQuerySchema = z.object({
   person_id: z.string().uuid().optional(),
-  type: z.enum(RELATIONSHIP_TYPES).optional(),
+  type: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });

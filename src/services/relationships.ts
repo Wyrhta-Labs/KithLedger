@@ -2,6 +2,7 @@ import { db } from '../db/index.js';
 import { relationships, people } from '../db/schema/index.js';
 import { eq, or, and, sql, inArray } from 'drizzle-orm';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
+import { assertActiveSettingValueExists } from './setting-values.js';
 
 interface GraphNode {
   id: string;
@@ -108,6 +109,7 @@ export async function createRelationship(input: CreateRelationshipInput) {
 
   const [to] = await db.select().from(people).where(eq(people.id, input.toPersonId)).limit(1);
   if (!to) throw new Error('TO_PERSON_NOT_FOUND');
+  await assertActiveSettingValueExists('relationship.type', input.type);
 
   try {
     const [row] = await db
@@ -137,6 +139,10 @@ export async function createRelationship(input: CreateRelationshipInput) {
 }
 
 export async function updateRelationship(id: string, input: UpdateRelationshipInput) {
+  if (input.type !== undefined) {
+    await assertActiveSettingValueExists('relationship.type', input.type);
+  }
+
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (input.type !== undefined) updates['type'] = input.type;
   if (input.label !== undefined) updates['label'] = input.label;
@@ -176,7 +182,7 @@ export async function getPersonGraph(personId: string, depth: number) {
 
     const nodes = await db.select({ id: people.id, name: people.name })
       .from(people)
-      .where(sql`${people.id} = ANY(${Array.from(personIds)})`);
+      .where(inArray(people.id, Array.from(personIds)));
 
     return buildGraphResult(nodes, rels, personId);
   }

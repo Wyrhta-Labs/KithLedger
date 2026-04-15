@@ -14,7 +14,7 @@ export interface ListInteractionsParams {
 export interface CreateInteractionInput {
   personId: string;
   occurredAt: string;
-  type: 'meeting' | 'call' | 'message' | 'email' | 'other';
+  type: string;
   channel?: string;
   notes?: string;
   sentiment?: 'positive' | 'neutral' | 'negative';
@@ -22,7 +22,7 @@ export interface CreateInteractionInput {
 
 export interface UpdateInteractionInput {
   occurredAt?: string;
-  type?: 'meeting' | 'call' | 'message' | 'email' | 'other';
+  type?: string;
   channel?: string | null;
   notes?: string | null;
   sentiment?: 'positive' | 'neutral' | 'negative' | null;
