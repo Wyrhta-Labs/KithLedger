@@ -17,6 +17,7 @@ import InteractionsPage from './pages/interactions';
 import RemindersPage from './pages/reminders';
 import GraphPage from './pages/graph';
 import SettingsPage from './pages/settings';
+import ProfilePage from './pages/profile';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +94,12 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
+const profileRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: '/profile',
+  component: ProfilePage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
@@ -103,6 +110,7 @@ const routeTree = rootRoute.addChildren([
     remindersRoute,
     graphRoute,
     settingsRoute,
+    profileRoute,
   ]),
 ]);
 

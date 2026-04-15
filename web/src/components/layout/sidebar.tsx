@@ -1,4 +1,4 @@
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 import {
   LayoutDashboard,
   Users,
@@ -9,19 +9,19 @@ import {
   BookHeart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NAV_ITEMS } from '@/lib/navigation';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/people', label: 'People', icon: Users },
-  { to: '/interactions', label: 'Interactions', icon: MessageSquare },
-  { to: '/reminders', label: 'Reminders', icon: Bell },
-  { to: '/graph', label: 'Graph', icon: GitBranch },
-  { to: '/settings', label: 'Settings', icon: Settings },
-];
+const navIcons = {
+  '/': LayoutDashboard,
+  '/people': Users,
+  '/interactions': MessageSquare,
+  '/reminders': Bell,
+  '/graph': GitBranch,
+  '/settings': Settings,
+} as const;
 
 export default function Sidebar() {
-  const router = useRouter();
-  const pathname = router.state.location.pathname;
+  const { pathname } = useLocation();
 
   return (
     <aside className="flex flex-col w-60 min-h-screen bg-gray-900 text-white">
@@ -30,7 +30,8 @@ export default function Sidebar() {
         <span className="font-bold text-lg">KithLedger</span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ to, label, icon: Icon, exact }) => {
+        {NAV_ITEMS.map(({ to, label, exact }) => {
+          const Icon = navIcons[to as keyof typeof navIcons];
           const isActive = exact ? pathname === to : pathname.startsWith(to) && to !== '/';
           const isDash = to === '/' && pathname === '/';
           const active = isActive || isDash;
