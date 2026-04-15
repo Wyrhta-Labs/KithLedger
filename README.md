@@ -16,6 +16,25 @@ npm run docker:up
 
 The API starts at `http://localhost:3000`. Migrations run automatically on startup.
 
+### Local Docker Desktop debug stack
+
+For live-reload API + Vite + Postgres in Docker Desktop:
+
+```bash
+npm run docker:local-debug:up
+```
+
+This uses `.env.local`, starts:
+- API at `http://localhost:3000`
+- Web UI at `http://localhost:5173`
+- PostgreSQL at `localhost:5432`
+
+Stop it with:
+
+```bash
+npm run docker:local-debug:down
+```
+
 ### Local development
 
 Requires PostgreSQL 16 running locally.

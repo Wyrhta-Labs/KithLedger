@@ -14,6 +14,7 @@ async function main() {
   serve(
     {
       fetch: app.fetch,
+      hostname: '0.0.0.0',
       port: config.port,
     },
     (info) => {

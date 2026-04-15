@@ -22,7 +22,10 @@
     "test:coverage": "vitest run --coverage",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:reset": "docker compose down -v && docker compose up -d"
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "docker:local-debug:up": "docker compose --env-file .env.local -f docker-compose.local-debug.yml up -d",
+    "docker:local-debug:down": "docker compose --env-file .env.local -f docker-compose.local-debug.yml down",
+    "docker:local-debug:reset": "docker compose --env-file .env.local -f docker-compose.local-debug.yml down -v && docker compose --env-file .env.local -f docker-compose.local-debug.yml up -d"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

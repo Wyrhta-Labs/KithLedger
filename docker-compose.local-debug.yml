@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kithledger-db-local
+    environment:
+      POSTGRES_USER: kith
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme-local-dev}
+      POSTGRES_DB: kithledger
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_local_debug_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kith -d kithledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  api:
+    image: node:22-alpine
+    container_name: kithledger-api-local
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://kith:${POSTGRES_PASSWORD:-changeme-local-dev}@db:5432/kithledger
+      API_PORT: 3000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - api_node_modules:/app/node_modules
+    command: >
+      sh -lc "npm ci && npm run dev:api"
+    restart: unless-stopped
+
+  web:
+    image: node:22-alpine
+    container_name: kithledger-web-local
+    working_dir: /app/web
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      VITE_API_PROXY_TARGET: http://api:3000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/web/node_modules
+    command: >
+      sh -lc "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    restart: unless-stopped
+
+volumes:
+  postgres_local_debug_data:
+  api_node_modules:
+  web_node_modules:
