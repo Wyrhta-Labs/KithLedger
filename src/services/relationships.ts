@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { relationships, people } from '../db/schema/index.js';
-import { eq, or, and, sql } from 'drizzle-orm';
+import { eq, or, and, sql, inArray } from 'drizzle-orm';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
 
 export async function listRelationships(query: ListRelationshipsQuery) {
@@ -120,40 +120,49 @@ export async function getPersonGraph(personId: string, depth: number) {
     return { nodes, edges: rels };
   }
 
-  // For depth 2-3, use recursive CTE
-  const result = await db.execute(sql`
-    WITH RECURSIVE graph AS (
-      -- Base: relationships involving root person
-      SELECT r.*, 1 as depth
-      FROM relationships r
-      WHERE r.from_person_id = ${personId}
-         OR (r.to_person_id = ${personId} AND r.is_mutual = true)
-
-      UNION
-
-      -- Recursive: next-hop neighbors
-      SELECT r2.*, g.depth + 1
-      FROM relationships r2
-      INNER JOIN graph g ON (
-        r2.from_person_id IN (g.from_person_id, g.to_person_id)
-        OR (r2.to_person_id IN (g.from_person_id, g.to_person_id) AND r2.is_mutual = true)
-      )
-      WHERE g.depth < ${safeDepth}
-    )
-    SELECT DISTINCT ON (id) * FROM graph
-  `);
-
-  const edges = result as unknown as typeof relationships.$inferSelect[];
-
   const personIds = new Set<string>([personId]);
-  for (const rel of edges) {
-    personIds.add(rel.fromPersonId);
-    personIds.add(rel.toPersonId);
+  const edgeIds = new Set<string>();
+  const edges: typeof relationships.$inferSelect[] = [];
+  let frontier = new Set<string>([personId]);
+
+  for (let currentDepth = 1; currentDepth <= safeDepth && frontier.size > 0; currentDepth += 1) {
+    const frontierIds = Array.from(frontier);
+    const rels = await db
+      .select()
+      .from(relationships)
+      .where(
+        or(
+          inArray(relationships.fromPersonId, frontierIds),
+          and(inArray(relationships.toPersonId, frontierIds), eq(relationships.isMutual, true))
+        )!
+      );
+
+    const nextFrontier = new Set<string>();
+
+    for (const rel of rels) {
+      if (!edgeIds.has(rel.id)) {
+        edgeIds.add(rel.id);
+        edges.push(rel);
+      }
+
+      if (!personIds.has(rel.fromPersonId)) {
+        personIds.add(rel.fromPersonId);
+        nextFrontier.add(rel.fromPersonId);
+      }
+
+      if (!personIds.has(rel.toPersonId)) {
+        personIds.add(rel.toPersonId);
+        nextFrontier.add(rel.toPersonId);
+      }
+    }
+
+    frontier = nextFrontier;
   }
 
-  const nodes = await db.select({ id: people.id, name: people.name })
+  const nodes = await db
+    .select({ id: people.id, name: people.name })
     .from(people)
-    .where(sql`${people.id} = ANY(${Array.from(personIds)})`);
+    .where(inArray(people.id, Array.from(personIds)));
 
   return { nodes, edges };
 }
