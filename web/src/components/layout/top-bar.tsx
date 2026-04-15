@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown, ChevronRight, LogOut, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, ScrollText, User } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { BreadcrumbItem } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -71,6 +71,14 @@ export default function TopBar({ breadcrumbs }: TopBarProps) {
             >
               <User className="mr-2 h-4 w-4" />
               Profile
+            </Link>
+            <Link
+              to="/changelog"
+              className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              onClick={() => setMenuOpen(false)}
+            >
+              <ScrollText className="mr-2 h-4 w-4" />
+              Changelog
             </Link>
             <button
               type="button"

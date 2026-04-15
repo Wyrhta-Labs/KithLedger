@@ -20,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   '/': 'Dashboard',
+  '/changelog': 'Changelog',
   '/people': 'People',
   '/people/$id': 'Person Detail',
   '/interactions': 'Interactions',
