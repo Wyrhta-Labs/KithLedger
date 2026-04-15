@@ -8,6 +8,13 @@
       "when": 1773781394516,
       "tag": "0000_blushing_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776294321987,
+      "tag": "0001_bent_zemo",
+      "breakpoints": true
     }
   ]
 }

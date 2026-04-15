@@ -17,6 +17,7 @@ export const listRemindersQuerySchema = z.object({
   status: z.enum(REMINDER_STATUSES).optional(),
   due_before: z.string().datetime().optional(),
   overdue: z.enum(['true', 'false']).optional(),
+  include_hidden: z.enum(['true', 'false']).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });

@@ -35,6 +35,8 @@ export interface Reminder {
   dueAt: string;
   title: string;
   notes: string | null;
+  kind: 'manual' | 'birthday';
+  isHidden: boolean;
   status: 'pending' | 'done' | 'snoozed' | 'dismissed';
   snoozedUntil: string | null;
   recurrence: string | null;

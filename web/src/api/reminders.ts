@@ -6,6 +6,7 @@ export interface ListRemindersParams {
   status?: string;
   from?: string;
   to?: string;
+  include_hidden?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -67,4 +68,12 @@ export function snoozeReminder(id: string, snoozeUntil: string): Promise<SingleR
 
 export function dismissReminder(id: string): Promise<SingleResponse<Reminder>> {
   return apiPost(`/reminders/${id}/dismiss`, {});
+}
+
+export function hideReminder(id: string): Promise<SingleResponse<Reminder>> {
+  return apiPost(`/reminders/${id}/hide`, {});
+}
+
+export function unhideReminder(id: string): Promise<SingleResponse<Reminder>> {
+  return apiPost(`/reminders/${id}/unhide`, {});
 }

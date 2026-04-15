@@ -69,3 +69,19 @@ export function useDismissReminder() {
     onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.reminders }),
   });
 }
+
+export function useHideReminder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.hideReminder(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.reminders }),
+  });
+}
+
+export function useUnhideReminder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.unhideReminder(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEYS.reminders }),
+  });
+}

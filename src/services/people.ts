@@ -2,6 +2,7 @@ import { db } from '../db/index.js';
 import { people } from '../db/schema/index.js';
 import { eq, ilike, or, sql, asc, desc } from 'drizzle-orm';
 import type { CreatePersonInput, UpdatePersonInput, ListPeopleQuery } from '../validators/people.js';
+import { syncBirthdayReminderForPerson } from './birthday-reminders.js';
 
 export async function listPeople(query: ListPeopleQuery) {
   let baseQuery = db.select().from(people).$dynamic();
@@ -73,6 +74,7 @@ export async function createPerson(input: CreatePersonInput) {
     })
     .returning();
   if (!row) throw new Error('Failed to create person');
+  await syncBirthdayReminderForPerson(row.id, row.name, row.birthday);
   return row;
 }
 
@@ -87,6 +89,9 @@ export async function updatePerson(id: string, input: UpdatePersonInput) {
   if (input.avatarUrl !== undefined) updates['avatarUrl'] = input.avatarUrl;
 
   const [row] = await db.update(people).set(updates).where(eq(people.id, id)).returning();
+  if (row) {
+    await syncBirthdayReminderForPerson(row.id, row.name, row.birthday);
+  }
   return row ?? null;
 }
 

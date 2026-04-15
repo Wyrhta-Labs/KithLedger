@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Check, Clock, X, Trash2 } from 'lucide-react';
+import { Plus, Check, Clock, X, Trash2, EyeOff, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -12,6 +12,8 @@ import {
   useSnoozeReminder,
   useDismissReminder,
   useDeleteReminder,
+  useHideReminder,
+  useUnhideReminder,
 } from '@/hooks/use-reminders';
 import { usePeople } from '@/hooks/use-people';
 import { useToast } from '@/components/ui/toast';
@@ -36,11 +38,13 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
   const [showCreate, setShowCreate] = useState(false);
   const [snoozeId, setSnoozeId] = useState<string | null>(null);
   const [snoozeUntil, setSnoozeUntil] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
   const { toast } = useToast();
 
   const { data, isLoading } = useReminders({
     person_id: personId,
     status: statusFilter || undefined,
+    include_hidden: showHidden,
     limit: 50,
   });
   const { data: peopleData } = usePeople({ limit: 100 });
@@ -49,6 +53,8 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
   const snoozeMutation = useSnoozeReminder();
   const dismissMutation = useDismissReminder();
   const deleteMutation = useDeleteReminder();
+  const hideMutation = useHideReminder();
+  const unhideMutation = useUnhideReminder();
 
   const reminders = data?.data ?? [];
   const peopleOptions = peopleData?.data?.map((p) => ({ id: p.id, name: p.name })) ?? [];
@@ -85,6 +91,16 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
     toast('Reminder deleted', 'success');
   };
 
+  const handleHide = async (id: string) => {
+    await hideMutation.mutateAsync(id);
+    toast('Reminder hidden', 'success');
+  };
+
+  const handleUnhide = async (id: string) => {
+    await unhideMutation.mutateAsync(id);
+    toast('Reminder restored', 'success');
+  };
+
   const handleCreate = async (values: Parameters<typeof createMutation.mutateAsync>[0]) => {
     await createMutation.mutateAsync(values as Parameters<typeof createMutation.mutateAsync>[0]);
     toast('Reminder created', 'success');
@@ -96,9 +112,14 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" /> Add Reminder
-        </Button>
+        <div className="flex gap-2">
+          <Button variant={showHidden ? 'secondary' : 'outline'} size="sm" onClick={() => setShowHidden((value) => !value)}>
+            <Eye className="h-4 w-4" /> {showHidden ? 'Hide Hidden' : 'Show Hidden'}
+          </Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" /> Add Reminder
+          </Button>
+        </div>
       </div>
 
       {sorted.length === 0 ? (
@@ -125,14 +146,38 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
                       <Badge variant={(statusBadge[reminder.status] as 'secondary' | 'success' | 'warning' | 'outline') ?? 'outline'}>
                         {reminderStatusLabel(reminder.status)}
                       </Badge>
+                      {reminder.kind === 'birthday' && <Badge variant="outline">Birthday</Badge>}
+                      {reminder.isHidden && <Badge variant="outline">Hidden</Badge>}
                       {overdue && <Badge variant="destructive">Overdue</Badge>}
                       {today && <Badge variant="warning">Due Today</Badge>}
-                      {reminder.recurrence && <Badge variant="outline">Recurring</Badge>}
+                      {reminder.recurrence && reminder.kind !== 'birthday' && <Badge variant="outline">Recurring</Badge>}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{formatDateTime(reminder.dueAt)}</p>
                     {reminder.notes && <p className="text-sm text-gray-600 mt-1">{reminder.notes}</p>}
                   </div>
-                  {reminder.status === 'pending' || reminder.status === 'snoozed' ? (
+                  {reminder.isHidden ? (
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-600" title="Unhide" onClick={() => handleUnhide(reminder.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : reminder.kind === 'birthday' ? (
+                    <div className="flex gap-1 shrink-0">
+                      {(reminder.status === 'pending' || reminder.status === 'snoozed') && (
+                        <>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" title="Complete" onClick={() => handleComplete(reminder.id)}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" title="Snooze" onClick={() => { setSnoozeId(reminder.id); setSnoozeUntil(''); }}>
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500" title="Hide" onClick={() => handleHide(reminder.id)}>
+                        <EyeOff className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : reminder.status === 'pending' || reminder.status === 'snoozed' ? (
                     <div className="flex gap-1 shrink-0">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" title="Complete" onClick={() => handleComplete(reminder.id)}>
                         <Check className="h-4 w-4" />

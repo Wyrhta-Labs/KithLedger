@@ -41,15 +41,29 @@ remindersRouter.patch('/:id', async (c) => {
   const body = updateReminderSchema.safeParse(await c.req.json());
   if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
 
-  const reminder = await service.updateReminder(c.req.param('id'), body.data);
-  if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
-  return ok(c, reminder);
+  try {
+    const reminder = await service.updateReminder(c.req.param('id'), body.data);
+    if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
+    return ok(c, reminder);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'BIRTHDAY_REMINDER_IMMUTABLE') {
+      return err(c, 'CONFLICT', 'Birthday reminders are managed from the person birthday', 409);
+    }
+    throw e;
+  }
 });
 
 remindersRouter.delete('/:id', async (c) => {
-  const reminder = await service.deleteReminder(c.req.param('id'));
-  if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
-  return ok(c, { id: reminder.id });
+  try {
+    const reminder = await service.deleteReminder(c.req.param('id'));
+    if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
+    return ok(c, { id: reminder.id });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'BIRTHDAY_REMINDER_DELETE_BLOCKED') {
+      return err(c, 'CONFLICT', 'Birthday reminders cannot be deleted. Hide them instead.', 409);
+    }
+    throw e;
+  }
 });
 
 remindersRouter.post('/:id/complete', async (c) => {
@@ -68,7 +82,26 @@ remindersRouter.post('/:id/snooze', async (c) => {
 });
 
 remindersRouter.post('/:id/dismiss', async (c) => {
-  const reminder = await service.dismissReminder(c.req.param('id'));
+  try {
+    const reminder = await service.dismissReminder(c.req.param('id'));
+    if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
+    return ok(c, reminder);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === 'BIRTHDAY_REMINDER_DISMISS_BLOCKED') {
+      return err(c, 'CONFLICT', 'Birthday reminders cannot be dismissed. Complete or hide them instead.', 409);
+    }
+    throw e;
+  }
+});
+
+remindersRouter.post('/:id/hide', async (c) => {
+  const reminder = await service.hideReminder(c.req.param('id'));
+  if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
+  return ok(c, reminder);
+});
+
+remindersRouter.post('/:id/unhide', async (c) => {
+  const reminder = await service.unhideReminder(c.req.param('id'));
   if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
   return ok(c, reminder);
 });

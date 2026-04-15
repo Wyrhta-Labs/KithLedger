@@ -82,6 +82,62 @@ describe('People CRUD', () => {
     expect(body.data.name).toBe('David');
   });
 
+  it('creates a birthday reminder when a birthday is set', async () => {
+    const headers = await authHeaders();
+    const res = await app.request('/api/v1/people', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: 'Frank', birthday: '1990-05-10' }),
+    });
+    expect(res.status).toBe(201);
+
+    const remindersRes = await app.request('/api/v1/reminders', { headers });
+    expect(remindersRes.status).toBe(200);
+    const body = await remindersRes.json() as {
+      data: Array<{ kind: string; title: string; personId: string; dueAt: string }>;
+    };
+    const birthdayReminder = body.data.find((reminder) => reminder.kind === 'birthday');
+    expect(birthdayReminder).toBeTruthy();
+    expect(birthdayReminder?.title).toBe('Frank turns 36');
+    expect(birthdayReminder?.dueAt).toBe('2026-05-10T12:00:00.000Z');
+  });
+
+  it('creates and removes the birthday reminder when birthday is added or cleared', async () => {
+    const headers = await authHeaders();
+    const createRes = await app.request('/api/v1/people', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name: 'Grace' }),
+    });
+    const { data: created } = await createRes.json() as { data: { id: string } };
+
+    const addBirthdayRes = await app.request(`/api/v1/people/${created.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ birthday: '1988-11-02' }),
+    });
+    expect(addBirthdayRes.status).toBe(200);
+
+    const remindersAfterAdd = await app.request(`/api/v1/reminders?person_id=${created.id}`, { headers });
+    const addedBody = await remindersAfterAdd.json() as {
+      data: Array<{ id: string; kind: string; title: string }>;
+    };
+    expect(addedBody.data).toHaveLength(1);
+    expect(addedBody.data[0]?.kind).toBe('birthday');
+    expect(addedBody.data[0]?.title).toBe('Grace turns 38');
+
+    const clearBirthdayRes = await app.request(`/api/v1/people/${created.id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ birthday: null }),
+    });
+    expect(clearBirthdayRes.status).toBe(200);
+
+    const remindersAfterClear = await app.request(`/api/v1/reminders?person_id=${created.id}`, { headers });
+    const clearedBody = await remindersAfterClear.json() as { data: unknown[] };
+    expect(clearedBody.data).toHaveLength(0);
+  });
+
   it('deletes a person', async () => {
     const headers = await authHeaders();
     const createRes = await app.request('/api/v1/people', {
