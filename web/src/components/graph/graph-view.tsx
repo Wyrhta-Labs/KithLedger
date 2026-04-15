@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from '@tanstack/react-router';
 import { usePersonGraph } from '@/hooks/use-people';
+import type { GraphEdge, GraphNode } from '@/lib/types';
 
 const TYPE_COLORS: Record<string, string> = {
   friend: '#3b82f6',
@@ -34,15 +35,23 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
   if (!data?.data) return <div className="py-8 text-center text-gray-500">No graph data.</div>;
 
   const { nodes, edges } = data.data;
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const safeEdges = edges.filter(
+    (edge): edge is GraphEdge =>
+      typeof edge.source === 'string' &&
+      typeof edge.target === 'string' &&
+      nodeIds.has(edge.source) &&
+      nodeIds.has(edge.target)
+  );
 
   const graphData = {
     nodes: nodes.map((n) => ({
       id: n.id,
       name: n.name,
-      depth: n.depth,
+      depth: n.depth ?? 0,
       color: n.id === personId ? '#1d4ed8' : '#3b82f6',
     })),
-    links: edges.map((e) => ({
+    links: safeEdges.map((e) => ({
       source: e.source,
       target: e.target,
       type: e.type,
@@ -63,7 +72,7 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
         linkDirectionalArrowRelPos={1}
         onNodeClick={handleNodeClick}
         nodeCanvasObject={(node, ctx, globalScale) => {
-          const n = node as { x?: number; y?: number; id?: string; name?: string; depth?: number };
+          const n = node as GraphNode & { x?: number; y?: number; color?: string };
           const x = n.x ?? 0;
           const y = n.y ?? 0;
           const label = n.name ?? '';
@@ -71,7 +80,10 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
           const r = isRoot ? 8 : 5;
           ctx.beginPath();
           ctx.arc(x, y, r, 0, 2 * Math.PI);
-          ctx.fillStyle = isRoot ? '#1d4ed8' : (TYPE_COLORS[edges.find(e => e.source === n.id || e.target === n.id)?.type ?? ''] ?? '#3b82f6');
+          ctx.fillStyle =
+            isRoot
+              ? '#1d4ed8'
+              : (TYPE_COLORS[safeEdges.find((edge) => edge.source === n.id || edge.target === n.id)?.type ?? ''] ?? '#3b82f6');
           ctx.fill();
           if (globalScale >= 1) {
             const fontSize = 12 / globalScale;

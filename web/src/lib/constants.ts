@@ -1,7 +1,7 @@
 export const QUERY_KEYS = {
   people: ['people'] as const,
   person: (id: string) => ['people', id] as const,
-  personGraph: (id: string) => ['people', id, 'graph'] as const,
+  personGraph: (id: string, depth?: number) => ['people', id, 'graph', depth ?? 1] as const,
   interactions: ['interactions'] as const,
   interaction: (id: string) => ['interactions', id] as const,
   reminders: ['reminders'] as const,

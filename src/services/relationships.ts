@@ -3,6 +3,67 @@ import { relationships, people } from '../db/schema/index.js';
 import { eq, or, and, sql, inArray } from 'drizzle-orm';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
 
+interface GraphNode {
+  id: string;
+  name: string;
+  depth: number;
+}
+
+interface GraphEdge {
+  source: string;
+  target: string;
+  type: string;
+  isMutual: boolean;
+}
+
+function buildGraphResult(
+  nodes: Array<{ id: string; name: string }>,
+  edges: typeof relationships.$inferSelect[],
+  rootPersonId: string,
+) {
+  const adjacency = new Map<string, Set<string>>();
+
+  for (const edge of edges) {
+    if (!adjacency.has(edge.fromPersonId)) adjacency.set(edge.fromPersonId, new Set<string>());
+    adjacency.get(edge.fromPersonId)?.add(edge.toPersonId);
+
+    if (edge.isMutual) {
+      if (!adjacency.has(edge.toPersonId)) adjacency.set(edge.toPersonId, new Set<string>());
+      adjacency.get(edge.toPersonId)?.add(edge.fromPersonId);
+    }
+  }
+
+  const nodeDepths = new Map<string, number>([[rootPersonId, 0]]);
+  const queue = [rootPersonId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId) continue;
+
+    const currentDepth = nodeDepths.get(currentId) ?? 0;
+    for (const neighborId of adjacency.get(currentId) ?? []) {
+      if (nodeDepths.has(neighborId)) continue;
+      nodeDepths.set(neighborId, currentDepth + 1);
+      queue.push(neighborId);
+    }
+  }
+
+  const graphNodes: GraphNode[] = nodes.map((node) => ({
+    id: node.id,
+    name: node.name,
+    depth: nodeDepths.get(node.id) ?? 0,
+  }));
+
+  const graphEdges: GraphEdge[] = edges.map((edge) => ({
+    source: edge.fromPersonId,
+    target: edge.toPersonId,
+    type: edge.type,
+    isMutual: edge.isMutual,
+  }));
+
+  return { nodes: graphNodes, edges: graphEdges };
+}
+
 export async function listRelationships(query: ListRelationshipsQuery) {
   const conditions = [];
 
@@ -117,7 +178,7 @@ export async function getPersonGraph(personId: string, depth: number) {
       .from(people)
       .where(sql`${people.id} = ANY(${Array.from(personIds)})`);
 
-    return { nodes, edges: rels };
+    return buildGraphResult(nodes, rels, personId);
   }
 
   const personIds = new Set<string>([personId]);
@@ -164,5 +225,5 @@ export async function getPersonGraph(personId: string, depth: number) {
     .from(people)
     .where(inArray(people.id, Array.from(personIds)));
 
-  return { nodes, edges };
+  return buildGraphResult(nodes, edges, personId);
 }

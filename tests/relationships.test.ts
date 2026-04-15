@@ -94,12 +94,19 @@ describe('Relationships', () => {
     const res = await app.request(`/api/v1/people/${aliceId}/graph`, { headers });
     expect(res.status).toBe(200);
     const { data, meta } = await res.json() as {
-      data: { nodes: { id: string }[]; edges: unknown[] };
+      data: { nodes: { id: string; depth: number }[]; edges: { source: string; target: string; type: string; isMutual: boolean }[] };
       meta: { root_person_id: string; depth: number };
     };
     expect(meta.root_person_id).toBe(aliceId);
     expect(data.nodes.length).toBe(3);
     expect(data.edges.length).toBe(2);
+    expect(data.nodes.find((node) => node.id === aliceId)?.depth).toBe(0);
+    expect(data.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: aliceId, target: bobId, type: 'friend', isMutual: true }),
+        expect.objectContaining({ source: aliceId, target: carolId, type: 'colleague', isMutual: true }),
+      ])
+    );
   });
 
   it('returns second-degree connections when depth=2', async () => {
@@ -117,7 +124,7 @@ describe('Relationships', () => {
     expect(res.status).toBe(200);
 
     const { data, meta } = await res.json() as {
-      data: { nodes: { id: string }[]; edges: { id: string }[] };
+      data: { nodes: { id: string; depth: number }[]; edges: { source: string; target: string }[] };
       meta: { root_person_id: string; depth: number };
     };
 
@@ -125,5 +132,7 @@ describe('Relationships', () => {
     expect(meta.depth).toBe(2);
     expect(data.nodes.map((node) => node.id).sort()).toEqual([alice.id, bob.id, carol.id].sort());
     expect(data.edges).toHaveLength(2);
+    expect(data.nodes.find((node) => node.id === bob.id)?.depth).toBe(1);
+    expect(data.nodes.find((node) => node.id === carol.id)?.depth).toBe(2);
   });
 });

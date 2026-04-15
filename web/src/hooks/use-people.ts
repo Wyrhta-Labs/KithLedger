@@ -20,7 +20,7 @@ export function usePerson(id: string) {
 
 export function usePersonGraph(id: string, depth = 2) {
   return useQuery({
-    queryKey: QUERY_KEYS.personGraph(id),
+    queryKey: QUERY_KEYS.personGraph(id, depth),
     queryFn: () => api.getPersonGraph(id, depth),
     enabled: !!id,
   });
