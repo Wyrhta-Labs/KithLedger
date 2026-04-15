@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-16
+
 ### Added
 
 - **Structured audit logging** — `src/lib/logger.ts` emits JSON events to stdout for auth and key-lifecycle actions (`auth.token.success/failure`, `auth.key.created/revoked/used`) ([87617f5])
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DB connection pool config** — `DB_POOL_MAX` env var (default `10`) passed to the postgres client
 - **Health check DB probe** — `GET /health` now executes `SELECT 1` and returns `{ db: "connected" }` or `503 { db: "disconnected" }` if the database is unreachable
 - **Profile page and navigation updates** — Added a profile screen plus refreshed app-shell navigation for the web UI
+- **Global graph mode** — `/graph` can now show all people and relationships at once, with `Me` pinned in the center and isolated people included
 
 ### Changed
 
@@ -88,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker** — Multi-stage Dockerfile, `docker compose` for API + Postgres ([d906993])
 - **Developer docs** — CLAUDE.md with architecture notes, module structure, and gotchas ([b48d3c2])
 
-[Unreleased]: https://github.com/KithLedger/KithLedger/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/KithLedger/KithLedger/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/KithLedger/KithLedger/compare/v0.1.0...v0.2.0
 [87617f5]: https://github.com/KithLedger/KithLedger/commit/87617f5
 [0.1.0]: https://github.com/KithLedger/KithLedger/commits/v0.1.0
 [d906993]: https://github.com/KithLedger/KithLedger/commit/d906993

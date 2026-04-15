@@ -135,4 +135,34 @@ describe('Relationships', () => {
     expect(data.nodes.find((node) => node.id === bob.id)?.depth).toBe(1);
     expect(data.nodes.find((node) => node.id === carol.id)?.depth).toBe(2);
   });
+
+  it('returns the global graph with isolated people included', async () => {
+    const headers = await authHeaders();
+    const aliceId = await createPerson(app, headers, 'Global Alice');
+    const bobId = await createPerson(app, headers, 'Global Bob');
+    const irisId = await createPerson(app, headers, 'Isolated Iris');
+
+    await app.request('/api/v1/relationships', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fromPersonId: aliceId, toPersonId: bobId, type: 'friend' }),
+    });
+
+    const res = await app.request('/api/v1/graph', { headers });
+    expect(res.status).toBe(200);
+
+    const { data, meta } = await res.json() as {
+      data: { nodes: { id: string; depth: number }[]; edges: { source: string; target: string; type: string; isMutual: boolean }[] };
+      meta: { root_person_id: string | null; depth: number; mode: 'all' | 'person' };
+    };
+
+    expect(meta).toEqual({ root_person_id: null, depth: 0, mode: 'all' });
+    expect(data.nodes.map((node) => node.id)).toEqual(expect.arrayContaining([aliceId, bobId, irisId]));
+    expect(data.nodes.find((node) => node.id === irisId)?.depth).toBe(1);
+    expect(data.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: aliceId, target: bobId, type: 'friend', isMutual: true }),
+      ])
+    );
+  });
 });

@@ -65,6 +65,26 @@ function buildGraphResult(
   return { nodes: graphNodes, edges: graphEdges };
 }
 
+function buildGlobalGraphResult(
+  nodes: Array<{ id: string; name: string }>,
+  edges: typeof relationships.$inferSelect[],
+) {
+  const graphNodes: GraphNode[] = nodes.map((node) => ({
+    id: node.id,
+    name: node.name,
+    depth: 1,
+  }));
+
+  const graphEdges: GraphEdge[] = edges.map((edge) => ({
+    source: edge.fromPersonId,
+    target: edge.toPersonId,
+    type: edge.type,
+    isMutual: edge.isMutual,
+  }));
+
+  return { nodes: graphNodes, edges: graphEdges };
+}
+
 export async function listRelationships(query: ListRelationshipsQuery) {
   const conditions = [];
 
@@ -232,4 +252,13 @@ export async function getPersonGraph(personId: string, depth: number) {
     .where(inArray(people.id, Array.from(personIds)));
 
   return buildGraphResult(nodes, edges, personId);
+}
+
+export async function getGlobalGraph() {
+  const [allPeople, allRelationships] = await Promise.all([
+    db.select({ id: people.id, name: people.name }).from(people),
+    db.select().from(relationships),
+  ]);
+
+  return buildGlobalGraphResult(allPeople, allRelationships);
 }

@@ -65,3 +65,7 @@ export function deletePerson(id: string): Promise<SingleResponse<{ id: string }>
 export function getPersonGraph(id: string, depth = 2): Promise<GraphResponse> {
   return apiGet(`/people/${id}/graph?depth=${depth}`);
 }
+
+export function getGlobalGraph(): Promise<GraphResponse> {
+  return apiGet('/graph');
+}

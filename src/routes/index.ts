@@ -20,6 +20,11 @@ export function mountRoutes(app: Hono) {
   app.route('/api/v1/relationships', relationshipsRouter);
   app.route('/api/v1/settings', settingsRouter);
 
+  app.get('/api/v1/graph', requireAuth, async (c) => {
+    const result = await relationshipService.getGlobalGraph();
+    return ok(c, result, { root_person_id: null, depth: 0, mode: 'all' });
+  });
+
   // Graph endpoint nested under people
   app.get('/api/v1/people/:id/graph', requireAuth, async (c) => {
     const query = graphQuerySchema.safeParse(c.req.query());
@@ -28,6 +33,6 @@ export function mountRoutes(app: Hono) {
     const result = await relationshipService.getPersonGraph(c.req.param('id'), query.data.depth);
     if (!result) return err(c, 'NOT_FOUND', 'Person not found', 404);
 
-    return ok(c, result, { root_person_id: c.req.param('id'), depth: query.data.depth });
+    return ok(c, result, { root_person_id: c.req.param('id'), depth: query.data.depth, mode: 'person' });
   });
 }

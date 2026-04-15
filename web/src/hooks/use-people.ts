@@ -26,6 +26,14 @@ export function usePersonGraph(id: string, depth = 2) {
   });
 }
 
+export function useGlobalGraph(enabled = true) {
+  return useQuery({
+    queryKey: QUERY_KEYS.globalGraph,
+    queryFn: () => api.getGlobalGraph(),
+    enabled,
+  });
+}
+
 export function useCreatePerson() {
   const qc = useQueryClient();
   return useMutation({

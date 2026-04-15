@@ -126,5 +126,5 @@ export interface GraphData {
 
 export interface GraphResponse {
   data: GraphData;
-  meta: { root_person_id: string; depth: number };
+  meta: { root_person_id: string | null; depth: number; mode: 'person' | 'all' };
 }
