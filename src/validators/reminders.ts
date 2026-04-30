@@ -1,12 +1,17 @@
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
+
+function sanitizeHtml(val: string): string {
+  return DOMPurify.sanitize(val, { ALLOWED_TAGS: [] });
+}
 
 const REMINDER_STATUSES = ['pending', 'done', 'snoozed', 'dismissed'] as const;
 
 export const createReminderSchema = z.object({
   personId: z.string().uuid(),
   dueAt: z.string().datetime(),
-  title: z.string().min(1),
-  notes: z.string().optional().nullable(),
+  title: z.string().min(1).max(255).transform(sanitizeHtml),
+  notes: z.string().max(10000).transform(sanitizeHtml).optional().nullable(),
   recurrence: z.string().optional().nullable(), // ISO 8601 duration
 });
 

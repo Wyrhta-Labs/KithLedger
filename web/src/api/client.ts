@@ -1,9 +1,5 @@
 const BASE_URL = '/api/v1';
 
-// CSRF protection: using the Authorization request header (not cookies) for
-// authentication inherently mitigates CSRF — cross-origin requests cannot set
-// custom headers without a preflight that the server's CORS policy would block.
-
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -15,8 +11,48 @@ export class ApiError extends Error {
   }
 }
 
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 function getToken(): string | null {
   return localStorage.getItem('kith_jwt');
+}
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function tryRefreshToken(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data?.token) {
+          localStorage.setItem('kith_jwt', json.data.token);
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -25,11 +61,41 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+
+  // Add CSRF token for state-changing requests
+  const method = options.method || 'GET';
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+
   if (options.headers) {
     Object.assign(headers, options.headers);
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  // On 401, try refreshing the token once
+  if (res.status === 401 && path !== '/auth/refresh' && path !== '/auth/token') {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      const newToken = getToken();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+      }
+      res = await fetch(`${BASE_URL}${path}`, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+    }
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('kith_jwt');

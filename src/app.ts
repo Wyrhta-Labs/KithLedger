@@ -9,6 +9,8 @@ import { mountRoutes } from './routes/index.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import { requestId } from './middleware/request-id.js';
+import { csrfProtection, csrfTokenGenerator } from './middleware/csrf.js';
+import { createRateLimiter } from './middleware/rate-limit.js';
 
 // Extend Hono's variable type to include auth and requestId
 declare module 'hono' {
@@ -30,8 +32,18 @@ export function createApp() {
   app.use('*', requestId);
   app.use('*', securityHeaders);
   app.use('*', logger());
-  app.use('*', cors({ origin: config.corsOrigin }));
+  app.use('*', cors({
+    origin: config.corsOrigin,
+    credentials: true,
+  }));
   app.use('/api/*', bodyLimit({ maxSize: 1024 * 1024 })); // 1 MB
+
+  // CSRF protection
+  app.use('/api/*', csrfTokenGenerator);
+  app.use('/api/*', csrfProtection);
+
+  // Global rate limiting on all API endpoints (500 req/min per IP)
+  app.use('/api/*', createRateLimiter({ prefix: 'global', max: 500, windowSeconds: 60 }));
 
   mountRoutes(app);
 

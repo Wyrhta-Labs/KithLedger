@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { people } from '../db/schema/index.js';
-import { eq, ilike, or, sql, asc, desc } from 'drizzle-orm';
+import { eq, or, and, sql, asc, desc } from 'drizzle-orm';
 import type { CreatePersonInput, UpdatePersonInput, ListPeopleQuery } from '../validators/people.js';
 import { syncBirthdayReminderForPerson } from './birthday-reminders.js';
 
@@ -10,10 +10,12 @@ export async function listPeople(query: ListPeopleQuery) {
   const conditions = [];
 
   if (query.q) {
+    // Escape LIKE wildcards to prevent SQL injection
+    const searchTerm = `%${query.q.replace(/[%_]/g, '\\$&')}%`;
     conditions.push(
       or(
-        ilike(people.name, `%${query.q}%`),
-        ilike(people.email, `%${query.q}%`)
+        sql`${people.name} ILIKE ${searchTerm}`,
+        sql`${people.email} ILIKE ${searchTerm}`
       )
     );
   }

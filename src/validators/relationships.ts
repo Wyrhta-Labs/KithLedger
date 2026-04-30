@@ -1,12 +1,17 @@
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
+
+function sanitizeHtml(val: string): string {
+  return DOMPurify.sanitize(val, { ALLOWED_TAGS: [] });
+}
 
 export const createRelationshipSchema = z.object({
   fromPersonId: z.string().uuid(),
   toPersonId: z.string().uuid(),
-  type: z.string().trim().min(1),
-  label: z.string().optional().nullable(),
+  type: z.string().trim().min(1).max(100).transform(sanitizeHtml),
+  label: z.string().max(255).transform(sanitizeHtml).optional().nullable(),
   isMutual: z.boolean().optional().default(true),
-  notes: z.string().optional().nullable(),
+  notes: z.string().max(10000).transform(sanitizeHtml).optional().nullable(),
 }).refine((data) => data.fromPersonId !== data.toPersonId, {
   message: 'fromPersonId and toPersonId must be different',
   path: ['toPersonId'],

@@ -1,17 +1,28 @@
 import type { MiddlewareHandler } from 'hono';
 import { verify } from 'hono/jwt';
+import { getCookie } from 'hono/cookie';
 import { config } from '../config/env.js';
 import { err } from '../lib/response.js';
 
 export const jwtMiddleware: MiddlewareHandler = async (c, next) => {
+  // Check cookie first, then Authorization header
+  const cookieToken = getCookie(c, 'kith_jwt');
   const authorization = c.req.header('Authorization');
-  if (!authorization?.startsWith('Bearer ')) {
-    return next();
+
+  let token: string | undefined;
+
+  if (cookieToken) {
+    token = cookieToken;
+  } else if (authorization?.startsWith('Bearer ')) {
+    const bearerToken = authorization.slice(7);
+    // Only accept JWT tokens here (not API keys)
+    if (!bearerToken.startsWith('kl_')) {
+      token = bearerToken;
+    }
   }
 
-  const token = authorization.slice(7);
-  if (token.startsWith('kl_')) {
-    return next(); // handled by api-key middleware
+  if (!token) {
+    return next();
   }
 
   try {

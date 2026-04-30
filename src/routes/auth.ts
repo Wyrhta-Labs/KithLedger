@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import { sign } from 'hono/jwt';
-import { createHash, timingSafeEqual } from 'crypto';
+import { setCookie, getCookie } from 'hono/cookie';
+import bcrypt from 'bcrypt';
+import { randomBytes, createHash } from 'crypto';
 import { z } from 'zod';
 import { config } from '../config/env.js';
 import { db } from '../db/index.js';
-import { apiKeys } from '../db/schema/index.js';
-import { eq } from 'drizzle-orm';
+import { redis } from '../db/redis.js';
+import { apiKeys, refreshTokens } from '../db/schema/index.js';
+import { eq, and, gt } from 'drizzle-orm';
 import { generateApiKey } from '../lib/crypto.js';
 import { ok, err } from '../lib/response.js';
 import { requireJwt } from '../middleware/auth.js';
@@ -20,13 +23,65 @@ const tokenSchema = z.object({
 
 const createKeySchema = z.object({
   name: z.string().min(1),
-  expiresAt: z.string().datetime().optional().nullable(),
+  expiresAt: z.string().datetime().optional().nullable().default(() => {
+    const oneYear = new Date();
+    oneYear.setFullYear(oneYear.getFullYear() + 1);
+    return oneYear.toISOString();
+  }),
 });
 
-function checkPassword(input: string, expected: string): boolean {
-  const inputHash = createHash('sha256').update(input).digest();
-  const expectedHash = createHash('sha256').update(expected).digest();
-  return timingSafeEqual(inputHash, expectedHash);
+async function checkPassword(input: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(input, hash);
+}
+
+const ACCESS_TOKEN_TTL = 900; // 15 minutes
+const REFRESH_TOKEN_TTL = config.jwtTtlSeconds; // 7 days default
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+async function issueTokens(c: Parameters<typeof rateLimitMiddleware>[0], subject: string) {
+  const now = Math.floor(Date.now() / 1000);
+  const accessPayload = {
+    sub: subject,
+    iat: now,
+    exp: now + ACCESS_TOKEN_TTL,
+  };
+
+  const accessToken = await sign(accessPayload, config.jwtSecret);
+
+  // Generate refresh token
+  const rawRefreshToken = randomBytes(32).toString('hex');
+  const refreshHash = hashToken(rawRefreshToken);
+
+  await db.insert(refreshTokens).values({
+    tokenHash: refreshHash,
+    subject,
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL * 1000),
+  });
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Set access token as httpOnly cookie
+  setCookie(c, 'kith_jwt', accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Strict',
+    maxAge: ACCESS_TOKEN_TTL,
+    path: '/',
+  });
+
+  // Set refresh token as httpOnly cookie
+  setCookie(c, 'kith_refresh', rawRefreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Strict',
+    maxAge: REFRESH_TOKEN_TTL,
+    path: '/api/v1/auth',
+  });
+
+  return { accessToken, expiresIn: ACCESS_TOKEN_TTL };
 }
 
 function getIp(c: Parameters<typeof rateLimitMiddleware>[0]): string {
@@ -46,21 +101,123 @@ authRouter.post('/token', rateLimitMiddleware, async (c) => {
   const ip = getIp(c);
   const requestId = c.get('requestId');
 
-  if (!checkPassword(body.data.password, config.adminPassword)) {
-    logEvent({ event: 'auth.token.failure', ip, success: false, request_id: requestId });
+  // Check for account lockout
+  const lockoutKey = 'auth:lockout:admin';
+  try {
+    const failedCount = await redis.get(lockoutKey);
+    const failedAttempts = failedCount ? parseInt(failedCount, 10) : 0;
+
+    if (failedAttempts >= 5) {
+      const ttl = await redis.ttl(lockoutKey);
+      c.header('Retry-After', String(Math.max(ttl, 1)));
+      logEvent({
+        event: 'auth.account.locked',
+        ip,
+        failed_attempts: failedAttempts,
+        request_id: requestId,
+      });
+      return err(c, 'ACCOUNT_LOCKED',
+        `Account temporarily locked due to too many failed attempts. Try again in ${Math.ceil(ttl / 60)} minutes.`,
+        403);
+    }
+  } catch (error) {
+    logEvent({ event: 'auth.lockout.check.error', error: String(error) });
+  }
+
+  if (!(await checkPassword(body.data.password, config.adminPasswordHash))) {
+    // Increment failed attempts
+    try {
+      const newCount = await redis.incr(lockoutKey);
+      if (newCount === 1) {
+        await redis.expire(lockoutKey, 3600); // 1 hour lockout window
+      }
+      logEvent({
+        event: 'auth.token.failure',
+        ip,
+        success: false,
+        failed_attempts: newCount,
+        request_id: requestId,
+      });
+    } catch (error) {
+      logEvent({ event: 'auth.lockout.increment.error', error: String(error) });
+    }
+
     return err(c, 'UNAUTHORIZED', 'Invalid password', 401);
   }
 
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    sub: 'admin',
-    iat: now,
-    exp: now + config.jwtTtlSeconds,
-  };
+  // Success - clear failed attempts
+  try {
+    await redis.del(lockoutKey);
+  } catch {
+    // Ignore error
+  }
 
-  const token = await sign(payload, config.jwtSecret);
+  const { accessToken, expiresIn } = await issueTokens(c, 'admin');
+
   logEvent({ event: 'auth.token.success', ip, success: true, request_id: requestId });
-  return ok(c, { token, expires_in: config.jwtTtlSeconds });
+  return ok(c, { token: accessToken, expires_in: expiresIn });
+});
+
+// Logout endpoint
+authRouter.post('/logout', requireJwt, async (c) => {
+  // Revoke refresh token if present
+  const refreshCookie = getCookie(c, 'kith_refresh');
+  if (refreshCookie) {
+    const hash = hashToken(refreshCookie);
+    await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, hash));
+  }
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  setCookie(c, 'kith_jwt', '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Strict',
+    maxAge: 0,
+    path: '/',
+  });
+  setCookie(c, 'kith_refresh', '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Strict',
+    maxAge: 0,
+    path: '/api/v1/auth',
+  });
+  return ok(c, { success: true });
+});
+
+// Refresh token endpoint
+authRouter.post('/refresh', async (c) => {
+  const refreshCookie = getCookie(c, 'kith_refresh');
+  if (!refreshCookie) {
+    return err(c, 'UNAUTHORIZED', 'No refresh token', 401);
+  }
+
+  const hash = hashToken(refreshCookie);
+
+  // Find valid refresh token
+  const [token] = await db
+    .select()
+    .from(refreshTokens)
+    .where(
+      and(
+        eq(refreshTokens.tokenHash, hash),
+        gt(refreshTokens.expiresAt, new Date())
+      )
+    )
+    .limit(1);
+
+  if (!token) {
+    return err(c, 'UNAUTHORIZED', 'Invalid or expired refresh token', 401);
+  }
+
+  // Delete old refresh token (rotation)
+  await db.delete(refreshTokens).where(eq(refreshTokens.id, token.id));
+
+  // Issue new tokens
+  const { accessToken, expiresIn } = await issueTokens(c, token.subject);
+
+  logEvent({ event: 'auth.token.refreshed', subject: token.subject, request_id: c.get('requestId') });
+  return ok(c, { token: accessToken, expires_in: expiresIn });
 });
 
 authRouter.get('/keys', requireJwt, async (c) => {

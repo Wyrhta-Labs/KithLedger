@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import DOMPurify from 'isomorphic-dompurify';
+
+function sanitizeHtml(val: string): string {
+  return DOMPurify.sanitize(val, { ALLOWED_TAGS: [] });
+}
 
 const CHANNELS = ['in-person', 'phone', 'sms', 'email', 'video', 'social'] as const;
 const SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
@@ -6,9 +11,9 @@ const SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
 export const createInteractionSchema = z.object({
   personId: z.string().uuid(),
   occurredAt: z.string().datetime(),
-  type: z.string().trim().min(1),
+  type: z.string().trim().min(1).max(100).transform(sanitizeHtml),
   channel: z.enum(CHANNELS).optional().nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z.string().max(10000).transform(sanitizeHtml).optional().nullable(),
   sentiment: z.enum(SENTIMENTS).optional().nullable(),
 });
 
