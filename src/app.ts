@@ -6,9 +6,7 @@ import { trimTrailingSlash } from 'hono/trailing-slash';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { config } from './config/env.js';
 import { mountRoutes } from './routes/index.js';
-import { errorHandler } from './middleware/error-handler.js';
-import { securityHeaders } from './middleware/security-headers.js';
-import { requestId } from './middleware/request-id.js';
+import { errorHandler, securityHeaders, requestId } from '@wyrhta/core/http';
 
 // Extend Hono's variable type to include auth and requestId
 declare module 'hono' {

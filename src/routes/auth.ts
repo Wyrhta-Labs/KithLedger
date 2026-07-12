@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
 import { sign } from 'hono/jwt';
 import { createHash, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
@@ -7,9 +7,8 @@ import { db } from '../db/index.js';
 import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import { generateApiKey } from '../lib/crypto.js';
-import { ok, err } from '@wyrhta/core/http';
+import { ok, err, rateLimit } from '@wyrhta/core/http';
 import { requireJwt } from '../middleware/auth.js';
-import { rateLimitMiddleware } from '../middleware/rate-limit.js';
 import { logEvent } from '../lib/logger.js';
 
 export const authRouter = new Hono();
@@ -29,7 +28,7 @@ function checkPassword(input: string, expected: string): boolean {
   return timingSafeEqual(inputHash, expectedHash);
 }
 
-function getIp(c: Parameters<typeof rateLimitMiddleware>[0]): string {
+function getIp(c: Parameters<MiddlewareHandler>[0]): string {
   return (
     c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
     c.req.header('cf-connecting-ip') ??
@@ -37,7 +36,7 @@ function getIp(c: Parameters<typeof rateLimitMiddleware>[0]): string {
   );
 }
 
-authRouter.post('/token', rateLimitMiddleware, async (c) => {
+authRouter.post('/token', rateLimit(), async (c) => {
   const body = tokenSchema.safeParse(await c.req.json());
   if (!body.success) {
     return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
