@@ -6,10 +6,9 @@ import { config } from '../config/env.js';
 import { db } from '../db/index.js';
 import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
-import { generateApiKey } from '../lib/crypto.js';
 import { ok, err, rateLimit } from '@wyrhta/core/http';
 import { requireJwt } from '../middleware/auth.js';
-import { logEvent } from '../lib/logger.js';
+import { generateApiKey, logEvent } from '@wyrhta/core/lib';
 
 export const authRouter = new Hono();
 
@@ -86,7 +85,7 @@ authRouter.post('/keys', requireJwt, async (c) => {
     return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
   }
 
-  const { raw, hash, prefix } = generateApiKey();
+  const { raw, hash, prefix } = generateApiKey({ prefix: 'kl_' });
 
   const [row] = await db
     .insert(apiKeys)

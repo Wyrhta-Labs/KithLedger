@@ -2,9 +2,8 @@ import type { MiddlewareHandler } from 'hono';
 import { db } from '../db/index.js';
 import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
-import { hashKey } from '../lib/crypto.js';
 import { err } from '@wyrhta/core/http';
-import { logEvent } from '../lib/logger.js';
+import { hashKey, logEvent } from '@wyrhta/core/lib';
 
 export const apiKeyMiddleware: MiddlewareHandler = async (c, next) => {
   const authorization = c.req.header('Authorization');
