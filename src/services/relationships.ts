@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { relationships, people } from '../db/schema/index.js';
-import { eq, or, and, sql } from 'drizzle-orm';
+import { eq, or, and, sql, inArray } from 'drizzle-orm';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
 
 export async function listRelationships(query: ListRelationshipsQuery) {
@@ -115,7 +115,7 @@ export async function getPersonGraph(personId: string, depth: number) {
 
     const nodes = await db.select({ id: people.id, name: people.name })
       .from(people)
-      .where(sql`${people.id} = ANY(${Array.from(personIds)})`);
+      .where(inArray(people.id, Array.from(personIds)));
 
     return { nodes, edges: rels };
   }
@@ -153,7 +153,7 @@ export async function getPersonGraph(personId: string, depth: number) {
 
   const nodes = await db.select({ id: people.id, name: people.name })
     .from(people)
-    .where(sql`${people.id} = ANY(${Array.from(personIds)})`);
+    .where(inArray(people.id, Array.from(personIds)));
 
   return { nodes, edges };
 }

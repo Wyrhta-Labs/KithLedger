@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../identity.js';
 import * as service from '../services/reminders.js';
 import { createReminderSchema, updateReminderSchema, listRemindersQuerySchema, snoozeReminderSchema } from '../validators/reminders.js';
-import { ok, err } from '../lib/response.js';
+import { ok, err } from '@wyrhta/core/http';
 
 export const remindersRouter = new Hono();
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { ok } from '../lib/response.js';
+import { ok } from '@wyrhta/core/http';
 
 export const healthRouter = new Hono();
 

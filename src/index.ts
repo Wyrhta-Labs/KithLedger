@@ -3,11 +3,16 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { db } from './db/index.js';
 import { createApp } from './app.js';
 import { config } from './config/env.js';
+import { seedAdmin } from './identity.js';
 
 async function main() {
   console.log('Running database migrations...');
   await migrate(db, { migrationsFolder: './src/db/migrations' });
   console.log('Migrations complete.');
+
+  console.log('Seeding admin user (idempotent)...');
+  await seedAdmin();
+  console.log('Admin user ready.');
 
   const app = createApp();
 

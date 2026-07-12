@@ -45,31 +45,18 @@ DB_POOL_MAX=10
 
 ```
 src/
-├── index.ts           # Entrypoint: run migrations, start server
-├── app.ts             # Hono app factory + middleware wiring
+├── index.ts           # Entrypoint: migrations, seed admin, start server
+├── app.ts             # Hono app factory + middleware wiring (core middleware)
+├── identity.ts        # @wyrhta/core identity service + auth guards, wired to db/config; seedAdmin/getAdminUser
 ├── config/env.ts      # Zod-validated env vars (single source of truth)
 ├── db/
 │   ├── index.ts       # Drizzle client singleton
-│   ├── schema/
-│   │   ├── index.ts          # Re-exports (uses .js extensions — ESM runtime)
-│   │   └── drizzle-schema.ts # Re-exports without .js — for drizzle-kit CJS compat
+│   ├── schema/        # domain tables + re-export of core users/api_keys
 │   └── migrations/    # Generated SQL migration files
-├── middleware/
-│   ├── auth.ts             # requireAuth / requireJwt guards
-│   ├── api-key.ts          # API key extraction + DB validation
-│   ├── jwt.ts              # JWT verification (HS256)
-│   ├── rate-limit.ts       # In-memory rate limiter (10 req/15 min) for /auth/token
-│   ├── request-id.ts       # Generates X-Request-Id; sets c.get('requestId')
-│   ├── security-headers.ts # X-Content-Type-Options, HSTS, X-Frame-Options, etc.
-│   └── error-handler.ts
 ├── routes/            # HTTP method + path only — no business logic
 ├── services/          # All business logic + Drizzle queries
-├── validators/        # Zod input schemas (request body + query params)
-└── lib/
-    ├── response.ts    # ok(c, data, meta?) and err(c, code, msg, status)
-    ├── pagination.ts  # parsePagination(query) → { limit, offset }
-    ├── logger.ts      # logEvent()/logError() — structured JSON audit logging
-    └── crypto.ts      # generateApiKey() → { raw, hash, prefix }
+├── validators/        # Zod input schemas (also reused as MCP tool inputSchemas)
+└── mcp/               # MCP server: auth adapter, kith.* tools, registry, entrypoint
 ```
 
 ## Web UI
@@ -89,6 +76,8 @@ Built output is served as static files from `web/dist/` by the Hono API in produ
 - **Recurring reminders:** `POST /reminders/:id/complete` wraps update + new-row insert in a Drizzle transaction when `recurrence` (ISO 8601, e.g. `P1M`) is set.
 - **Relationships:** One row with `is_mutual = true` represents a bidirectional link. Graph queries union `from_person_id = X` with `to_person_id = X WHERE is_mutual = true`.
 - **Migrations at startup:** `migrate()` runs programmatically in `src/index.ts` before `serve()`.
+- **Shared foundation:** the response envelope, pagination, request-id / security-headers / rate-limit / error-handler middleware, structured logger, crypto/api-key, and identity (users + api_keys, JWT, guards) come from `@wyrhta/core` (git-tag dependency). KithLedger is a single-user deployment: one `admin` user is seeded from `ADMIN_PASSWORD` at first boot; `POST /auth/token` authenticates that user and returns a core-issued JWT.
+- **MCP surface:** `src/mcp/` assembles the `kith.*` tool registry via core's `createMcpServer`; tools call the service layer directly and share REST's auth and audit trail. The MCP server reads a `kl_` API key from the `KITHLEDGER_MCP_API_KEY` environment variable (create one via `POST /api/v1/auth/keys`, JWT-authenticated) — a valid key resolves to the admin user, and a missing/invalid/non-`kl_` value is rejected on the first tool call. Run with `npm run mcp`.
 
 ## Adding a New Resource
 
