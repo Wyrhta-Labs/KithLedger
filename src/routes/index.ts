@@ -6,7 +6,7 @@ import { interactionsRouter } from './interactions.js';
 import { remindersRouter } from './reminders.js';
 import { relationshipsRouter } from './relationships.js';
 import * as relationshipService from '../services/relationships.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth } from '../identity.js';
 import { graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
 
