@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import { verify } from 'hono/jwt';
 import { config } from '../config/env.js';
-import { err } from '../lib/response.js';
+import { err } from '@wyrhta/core/http';
 
 export const jwtMiddleware: MiddlewareHandler = async (c, next) => {
   const authorization = c.req.header('Authorization');

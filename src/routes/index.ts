@@ -8,7 +8,7 @@ import { relationshipsRouter } from './relationships.js';
 import * as relationshipService from '../services/relationships.js';
 import { requireAuth } from '../middleware/auth.js';
 import { graphQuerySchema } from '../validators/relationships.js';
-import { ok, err } from '../lib/response.js';
+import { ok, err } from '@wyrhta/core/http';
 
 export function mountRoutes(app: Hono) {
   app.route('/', healthRouter);

@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import { hashKey } from '../lib/crypto.js';
-import { err } from '../lib/response.js';
+import { err } from '@wyrhta/core/http';
 import { logEvent } from '../lib/logger.js';
 
 export const apiKeyMiddleware: MiddlewareHandler = async (c, next) => {

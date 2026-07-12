@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import { apiKeyMiddleware } from './api-key.js';
 import { jwtMiddleware } from './jwt.js';
-import { err } from '../lib/response.js';
+import { err } from '@wyrhta/core/http';
 
 export interface AuthContext {
   type: 'api_key' | 'jwt';

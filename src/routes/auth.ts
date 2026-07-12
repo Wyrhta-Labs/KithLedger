@@ -7,7 +7,7 @@ import { db } from '../db/index.js';
 import { apiKeys } from '../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import { generateApiKey } from '../lib/crypto.js';
-import { ok, err } from '../lib/response.js';
+import { ok, err } from '@wyrhta/core/http';
 import { requireJwt } from '../middleware/auth.js';
 import { rateLimitMiddleware } from '../middleware/rate-limit.js';
 import { logEvent } from '../lib/logger.js';

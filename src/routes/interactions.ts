@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { requireAuth } from '../middleware/auth.js';
 import * as service from '../services/interactions.js';
 import { createInteractionSchema, updateInteractionSchema, listInteractionsQuerySchema } from '../validators/interactions.js';
-import { ok, err } from '../lib/response.js';
+import { ok, err } from '@wyrhta/core/http';
 
 export const interactionsRouter = new Hono();
 
