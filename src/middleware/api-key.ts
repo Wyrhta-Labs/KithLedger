@@ -20,12 +20,9 @@ export const apiKeyMiddleware: MiddlewareHandler = async (c, next) => {
     .where(eq(apiKeys.keyHash, hash))
     .limit(1);
 
-  if (!key || !key.isActive) {
+  // TEMPORARY: core api_keys has no is_active/expires_at; this file is replaced in Task 7
+  if (!key) {
     return err(c, 'UNAUTHORIZED', 'Invalid API key', 401);
-  }
-
-  if (key.expiresAt && key.expiresAt < new Date()) {
-    return err(c, 'UNAUTHORIZED', 'API key expired', 401);
   }
 
   // Fire-and-forget update last_used_at

@@ -3,22 +3,14 @@ import { sign } from 'hono/jwt';
 import { createHash, timingSafeEqual } from 'crypto';
 import { z } from 'zod';
 import { config } from '../config/env.js';
-import { db } from '../db/index.js';
-import { apiKeys } from '../db/schema/index.js';
-import { eq } from 'drizzle-orm';
 import { ok, err, rateLimit } from '@wyrhta/core/http';
 import { requireJwt } from '../middleware/auth.js';
-import { generateApiKey, logEvent } from '@wyrhta/core/lib';
+import { logEvent } from '@wyrhta/core/lib';
 
 export const authRouter = new Hono();
 
 const tokenSchema = z.object({
   password: z.string(),
-});
-
-const createKeySchema = z.object({
-  name: z.string().min(1),
-  expiresAt: z.string().datetime().optional().nullable(),
 });
 
 function checkPassword(input: string, expected: string): boolean {
@@ -61,74 +53,20 @@ authRouter.post('/token', rateLimit(), async (c) => {
   return ok(c, { token, expires_in: config.jwtTtlSeconds });
 });
 
+// TEMPORARY: rebuilt on core identity in Task 7
 authRouter.get('/keys', requireJwt, async (c) => {
-  const rows = await db
-    .select({
-      id: apiKeys.id,
-      name: apiKeys.name,
-      keyPrefix: apiKeys.keyPrefix,
-      createdAt: apiKeys.createdAt,
-      lastUsedAt: apiKeys.lastUsedAt,
-      expiresAt: apiKeys.expiresAt,
-      isActive: apiKeys.isActive,
-      scopes: apiKeys.scopes,
-    })
-    .from(apiKeys)
-    .orderBy(apiKeys.createdAt);
-
-  return ok(c, rows);
+  // core's err() status union has no 501; 500 is the closest available temporary status
+  return err(c, 'NOT_IMPLEMENTED', 'API key management is migrating', 500);
 });
 
+// TEMPORARY: rebuilt on core identity in Task 7
 authRouter.post('/keys', requireJwt, async (c) => {
-  const body = createKeySchema.safeParse(await c.req.json());
-  if (!body.success) {
-    return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
-  }
-
-  const { raw, hash, prefix } = generateApiKey({ prefix: 'kl_' });
-
-  const [row] = await db
-    .insert(apiKeys)
-    .values({
-      name: body.data.name,
-      keyHash: hash,
-      keyPrefix: prefix,
-      expiresAt: body.data.expiresAt ? new Date(body.data.expiresAt) : null,
-    })
-    .returning();
-
-  if (!row) throw new Error('Failed to create API key');
-
-  logEvent({ event: 'auth.key.created', key_id: row.id, key_name: row.name, request_id: c.get('requestId') });
-
-  return ok(
-    c,
-    {
-      id: row.id,
-      name: row.name,
-      key: raw, // only time raw key is returned
-      keyPrefix: row.keyPrefix,
-      createdAt: row.createdAt,
-      expiresAt: row.expiresAt,
-    },
-    undefined,
-    201
-  );
+  // core's err() status union has no 501; 500 is the closest available temporary status
+  return err(c, 'NOT_IMPLEMENTED', 'API key management is migrating', 500);
 });
 
+// TEMPORARY: rebuilt on core identity in Task 7
 authRouter.delete('/keys/:id', requireJwt, async (c) => {
-  const id = c.req.param('id');
-  const [row] = await db
-    .update(apiKeys)
-    .set({ isActive: false })
-    .where(eq(apiKeys.id, id))
-    .returning();
-
-  if (!row) {
-    return err(c, 'NOT_FOUND', 'API key not found', 404);
-  }
-
-  logEvent({ event: 'auth.key.revoked', key_id: row.id, key_name: row.name, request_id: c.get('requestId') });
-
-  return ok(c, { id: row.id, isActive: false });
+  // core's err() status union has no 501; 500 is the closest available temporary status
+  return err(c, 'NOT_IMPLEMENTED', 'API key management is migrating', 500);
 });

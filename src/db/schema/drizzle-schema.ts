@@ -3,4 +3,4 @@ export * from './people';
 export * from './interactions';
 export * from './reminders';
 export * from './relationships';
-export * from './api-keys';
+export { users, apiKeys, userRole } from '@wyrhta/core/identity';
