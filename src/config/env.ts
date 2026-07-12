@@ -8,6 +8,7 @@ const envSchema = z.object({
   JWT_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
   CORS_ORIGIN: z.string().default('*'),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+  KITHLEDGER_MCP_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -26,4 +27,5 @@ export const config = {
   jwtTtlSeconds: parsed.data.JWT_TTL_SECONDS,
   corsOrigin: parsed.data.CORS_ORIGIN,
   dbPoolMax: parsed.data.DB_POOL_MAX,
+  mcpApiKey: parsed.data.KITHLEDGER_MCP_API_KEY,
 } as const;
