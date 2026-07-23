@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-23
+
 ### Added
 
+- **Web UI** — Full React SPA for managing all resources from the browser ([8ec44c2])
+  - Dashboard with stats, upcoming reminders, recent interactions, birthday widget, and quick actions
+  - People: searchable list with pagination, create/edit/delete, detail view with tabbed sections
+  - Interactions: timeline view with sentiment indicators, type/channel filters, CRUD
+  - Reminders: status-filtered list with complete/snooze/dismiss actions, recurring support
+  - Relationships: bidirectional link management with type labels
+  - Graph Explorer: force-directed relationship graph with depth control and click-to-navigate
+  - Settings: API key creation, one-time reveal, and revocation
+  - Login page with JWT auth flow
+- **CI/CD** — GitHub Actions workflow to build and push container images to GHCR ([cf34cc3])
+  - Tagged pushes produce semver image tags; branch pushes use branch name
+  - Build skippable via `[skip ci]`, `[skipci]`, `[no ci]`, or `[no build]` in commit message
+- **Static serving** — Hono serves `web/dist/` with SPA fallback for production deployments ([8ec44c2])
+- **Dev workflow** — `npm run dev:all` runs API and Vite dev server concurrently ([8ec44c2])
+- **MCP server** — `src/mcp/` exposes 13 `kith.*` tools (people, interactions, reminders, relationships) over the Model Context Protocol via `npm run mcp`, calling the same service layer as REST so business rules and the audit trail are shared ([d05c4b8], [549ad8b])
+  - Authenticates via a `kl_` API key in `KITHLEDGER_MCP_API_KEY`, resolved to the single admin user
 - **Structured audit logging** — `src/lib/logger.ts` emits JSON events to stdout for auth and key-lifecycle actions (`auth.token.success/failure`, `auth.key.created/revoked/used`) ([87617f5])
 - **Security headers middleware** — `X-Content-Type-Options`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0`, `Referrer-Policy`, `Permissions-Policy`, and `Strict-Transport-Security` (non-localhost only)
 - **Request ID middleware** — Every request receives a UUID via `X-Request-Id` response header; propagated via `c.get('requestId')` for use in log events
@@ -19,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Migrated onto `@wyrhta/core`** — response envelope, pagination, request-id/security-headers/rate-limit/error-handler middleware, structured logger, crypto/api-key, and identity (users + api_keys, JWT, guards) now come from the shared foundation library (git-tag dependency, currently `v0.1.1`); KithLedger seeds a single admin user from `ADMIN_PASSWORD` at startup ([e81b268], [ec15ace], [b626d5e], [b48dfed], [ca2e8f9], [1f692b7], [e6fcac6])
 - **Timing-safe password comparison** — `POST /auth/token` now uses `crypto.timingSafeEqual` (SHA-256 digests) instead of `===` to prevent timing-based password enumeration
 - **JWT secret minimum raised** — `JWT_SECRET` must be at least 32 characters (was 16); process exits at startup if the constraint is not met
 - **JWT `sub` claim validated** — Tokens without a non-empty string `sub` are now rejected with `401`
@@ -41,25 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Cascade delete comments** — JSDoc added to all `onDelete: 'cascade'` FK columns in schema files explaining what gets deleted
 - **Accepted security trade-offs documented** — Comments in `use-auth.ts` (localStorage JWT), `client.ts` (CSRF via Authorization header), and `types.ts` (manual schema duplication) explain the reasoning
-
----
-
-### Added
-
-- **Web UI** — Full React SPA for managing all resources from the browser ([8ec44c2])
-  - Dashboard with stats, upcoming reminders, recent interactions, birthday widget, and quick actions
-  - People: searchable list with pagination, create/edit/delete, detail view with tabbed sections
-  - Interactions: timeline view with sentiment indicators, type/channel filters, CRUD
-  - Reminders: status-filtered list with complete/snooze/dismiss actions, recurring support
-  - Relationships: bidirectional link management with type labels
-  - Graph Explorer: force-directed relationship graph with depth control and click-to-navigate
-  - Settings: API key creation, one-time reveal, and revocation
-  - Login page with JWT auth flow
-- **CI/CD** — GitHub Actions workflow to build and push container images to GHCR ([cf34cc3])
-  - Tagged pushes produce semver image tags; branch pushes use branch name
-  - Build skippable via `[skip ci]`, `[skipci]`, `[no ci]`, or `[no build]` in commit message
-- **Static serving** — Hono serves `web/dist/` with SPA fallback for production deployments ([8ec44c2])
-- **Dev workflow** — `npm run dev:all` runs API and Vite dev server concurrently ([8ec44c2])
+- **MCP surface and `@wyrhta/core` foundation documented** — README and CLAUDE.md updated with the MCP tool table, auth flow, and shared-foundation architecture notes ([549ad8b])
 
 ### Tech Stack (Web UI)
 
@@ -85,10 +86,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Docker** — Multi-stage Dockerfile, `docker compose` for API + Postgres ([d906993])
 - **Developer docs** — CLAUDE.md with architecture notes, module structure, and gotchas ([b48d3c2])
 
-[Unreleased]: https://github.com/KithLedger/KithLedger/compare/v0.1.0...HEAD
-[87617f5]: https://github.com/KithLedger/KithLedger/commit/87617f5
-[0.1.0]: https://github.com/KithLedger/KithLedger/commits/v0.1.0
-[d906993]: https://github.com/KithLedger/KithLedger/commit/d906993
-[b48d3c2]: https://github.com/KithLedger/KithLedger/commit/b48d3c2
-[8ec44c2]: https://github.com/KithLedger/KithLedger/commit/8ec44c2
-[cf34cc3]: https://github.com/KithLedger/KithLedger/commit/cf34cc3
+[Unreleased]: https://github.com/Wyrhta-Labs/KithLedger/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Wyrhta-Labs/KithLedger/commits/v0.2.0
+[87617f5]: https://github.com/Wyrhta-Labs/KithLedger/commit/87617f5
+[0.1.0]: https://github.com/Wyrhta-Labs/KithLedger/commits/v0.1.0
+[d906993]: https://github.com/Wyrhta-Labs/KithLedger/commit/d906993
+[b48d3c2]: https://github.com/Wyrhta-Labs/KithLedger/commit/b48d3c2
+[8ec44c2]: https://github.com/Wyrhta-Labs/KithLedger/commit/8ec44c2
+[cf34cc3]: https://github.com/Wyrhta-Labs/KithLedger/commit/cf34cc3
+[d05c4b8]: https://github.com/Wyrhta-Labs/KithLedger/commit/d05c4b8
+[549ad8b]: https://github.com/Wyrhta-Labs/KithLedger/commit/549ad8b
+[e81b268]: https://github.com/Wyrhta-Labs/KithLedger/commit/e81b268
+[ec15ace]: https://github.com/Wyrhta-Labs/KithLedger/commit/ec15ace
+[b626d5e]: https://github.com/Wyrhta-Labs/KithLedger/commit/b626d5e
+[b48dfed]: https://github.com/Wyrhta-Labs/KithLedger/commit/b48dfed
+[ca2e8f9]: https://github.com/Wyrhta-Labs/KithLedger/commit/ca2e8f9
+[1f692b7]: https://github.com/Wyrhta-Labs/KithLedger/commit/1f692b7
+[e6fcac6]: https://github.com/Wyrhta-Labs/KithLedger/commit/e6fcac6
