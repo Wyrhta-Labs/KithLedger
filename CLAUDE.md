@@ -35,7 +35,7 @@ Copy `.env.example` → `.env`:
 DATABASE_URL=postgres://kith:<password>@localhost:5432/kithledger
 JWT_SECRET=<32+ char random string>   # min 32 chars, e.g. openssl rand -hex 32
 ADMIN_PASSWORD=<password>
-API_PORT=3002   # dev port allocation: Heorth 3000, Feoh 3001, KithLedger 3002
+API_PORT=4002   # dev port allocation: Heorth 4000, Feoh 4001, KithLedger 4002
 JWT_TTL_SECONDS=604800
 CORS_ORIGIN=*                          # set to your frontend origin in production
 DB_POOL_MAX=10
@@ -65,7 +65,7 @@ React SPA in `web/` (Vite, React 18, TanStack Router + Query, Tailwind, shadcn/u
 Built output is served as static files from `web/dist/` by the Hono API in production.
 
 - Source: `web/src/` — pages, components, hooks, api client, lib/types
-- Dev: `npm run dev:all` starts both API (port 3002) and Vite (port 5174) concurrently
+- Dev: `npm run dev:all` starts both API (port 4002) and Vite (port 5174) concurrently
 - Types in `web/src/lib/types.ts` are manually synced from backend schema (no codegen yet)
 
 ## Architecture Notes
