@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Removed an unused `declare module 'hono' { ContextVariableMap { auth } }` block in `src/app.ts` — nothing ever set or read an `auth` context variable (core declares its own `principal` variable).
+
 ## [0.2.0] - 2026-07-23
 
 ### Added

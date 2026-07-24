@@ -8,15 +8,10 @@ import { config } from './config/env.js';
 import { mountRoutes } from './routes/index.js';
 import { errorHandler, securityHeaders, requestId } from '@wyrhta/core/http';
 
-// Extend Hono's variable type to include auth and requestId
+// Extend Hono's variable type for requestId (core's own `principal` variable
+// is declared by @wyrhta/core itself — no 'auth' variable is ever set here).
 declare module 'hono' {
   interface ContextVariableMap {
-    auth: {
-      type: 'api_key' | 'jwt';
-      apiKeyId?: string;
-      apiKeyName?: string;
-      subject?: string;
-    };
     requestId: string;
   }
 }
