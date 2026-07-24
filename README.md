@@ -14,7 +14,7 @@ cp .env.example .env
 npm run docker:up
 ```
 
-The API starts at `http://localhost:3000`. Migrations run automatically on startup.
+The API starts at `http://localhost:3002`. Migrations run automatically on startup.
 
 ### Local development
 
@@ -35,7 +35,7 @@ npm run dev
 ### Get a JWT
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/auth/token \
+curl -X POST http://localhost:3002/api/v1/auth/token \
   -H 'Content-Type: application/json' \
   -d '{"password": "your-admin-password"}'
 ```
@@ -43,7 +43,7 @@ curl -X POST http://localhost:3000/api/v1/auth/token \
 ### Create an API key
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/auth/keys \
+curl -X POST http://localhost:3002/api/v1/auth/keys \
   -H 'Authorization: Bearer <jwt>' \
   -H 'Content-Type: application/json' \
   -d '{"name": "my-agent"}'
@@ -74,7 +74,7 @@ environment variable. Create one over REST while authenticated as the admin
 (JWT), then set it in the MCP server's environment:
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/auth/keys \
+curl -X POST http://localhost:3002/api/v1/auth/keys \
   -H 'Authorization: Bearer <jwt>' \
   -H 'Content-Type: application/json' \
   -d '{"name": "mcp-agent"}'

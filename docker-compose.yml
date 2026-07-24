@@ -2,7 +2,7 @@ services:
   api:
     build: .
     ports:
-      - "${API_PORT:-3000}:3000"
+      - "${API_PORT:-3002}:3000"
     environment:
       DATABASE_URL: postgres://kith:${POSTGRES_PASSWORD}@db:5432/kithledger
       JWT_SECRET: ${JWT_SECRET}

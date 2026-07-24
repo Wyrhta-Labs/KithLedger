@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dev ports moved to **3002** (API) and **5174** (Vite) per the cross-service
+  dev port allocation (Heorth 3000/5173, Feoh 3001, KithLedger 3002/5174) so
+  all services can run side by side locally. Container-internal port stays 3000.
+
 ### Fixed
 
 - Removed an unused `declare module 'hono' { ContextVariableMap { auth } }` block in `src/app.ts` — nothing ever set or read an `auth` context variable (core declares its own `principal` variable).
