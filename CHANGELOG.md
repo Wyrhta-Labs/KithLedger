@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Removed an unused `declare module 'hono' { ContextVariableMap { auth } }` block in `src/app.ts` — nothing ever set or read an `auth` context variable (core declares its own `principal` variable).
+- Container image build (GHCR workflow) failing since 2026-07-13: `web/vite.config.ts` uses `path`/`__dirname` but `web/` lacked `@types/node`, so the isolated Docker web build's typecheck failed. Added `@types/node` to `web/` devDependencies (same fix Heorth received on 2026-07-14).
 
 ## [0.2.0] - 2026-07-23
 
