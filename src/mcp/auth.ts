@@ -1,5 +1,6 @@
 import type { AuthAdapter, McpPrincipal } from '@wyrhta/core/mcp';
 import { logEvent } from '@wyrhta/core/lib';
+import { config } from '../config/env.js';
 import { identity } from '../identity.js';
 
 /**
@@ -32,7 +33,5 @@ export function createMcpAuthAdapter(getCredential: () => string | undefined): A
   };
 }
 
-/** Default adapter: reads the `kl_` key from the environment. */
-export const mcpAuthAdapter: AuthAdapter = createMcpAuthAdapter(
-  () => process.env['KITHLEDGER_MCP_API_KEY'],
-);
+/** Default adapter: reads the `kl_` key from the validated env config. */
+export const mcpAuthAdapter: AuthAdapter = createMcpAuthAdapter(() => config.mcpApiKey);
