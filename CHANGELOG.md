@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PostgreSQL baseline moved from **16** to **18** (`docker-compose.yml` now pins
+  `postgres:18-alpine`; docs and the `run-local` skill updated to match). Existing
+  PG16 data directories/volumes are not readable by PG18 — dump and restore (or
+  `pg_upgrade`) when moving an existing deployment. The `postgres_data` volume is
+  now mounted at `/var/lib/postgresql` (PG18's declared volume) rather than the
+  pre-18 `/var/lib/postgresql/data`, which would leave the container running on an
+  anonymous volume that never persists.
 - Dev ports moved to **4002** (API) and **5174** (Vite) per the cross-service
   dev port allocation (Heorth 4000/5173, Feoh 4001, KithLedger 4002/5174) so
   all services can run side by side locally. Container-internal port stays 3000.

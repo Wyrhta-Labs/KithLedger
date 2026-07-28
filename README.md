@@ -18,7 +18,7 @@ The API starts at `http://localhost:4002`. Migrations run automatically on start
 
 ### Local development
 
-Requires PostgreSQL 16 running locally.
+Requires PostgreSQL 18 running locally.
 
 ```bash
 cp .env.example .env

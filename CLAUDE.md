@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**KithLedger** is an API-first personal relationship manager (people, interactions, reminders, relationships). Built with Node.js 22 + TypeScript, Hono, Drizzle ORM, PostgreSQL 16, Zod, Vitest.
+**KithLedger** is an API-first personal relationship manager (people, interactions, reminders, relationships). Built with Node.js 22 + TypeScript, Hono, Drizzle ORM, PostgreSQL 18, Zod, Vitest.
 
 ## Commands
 
@@ -109,6 +109,7 @@ npm test
 ## Gotchas
 
 - **`drizzle-kit` must run via `tsx`** — schema files use `.js` extension imports (ESM runtime requirement) which drizzle-kit's CJS bundler can't resolve. The `db:*` scripts handle this.
+- **Postgres 18 volume path** — `postgres:18` sets `PGDATA` to `/var/lib/postgresql/<major>/docker` and declares its volume at `/var/lib/postgresql`, so `docker-compose.yml` mounts `postgres_data` there and **not** at the pre-18 `/var/lib/postgresql/data`. Mounting the old path makes the container start against an anonymous volume and silently stop persisting data. A volume created under 16 won't start under 18: `npm run docker:reset` (or `pg_upgrade`).
 - **`timestamp` not `timestamptz`** — Drizzle uses `timestamp('col', { withTimezone: true })`. There is no `timestamptz` export.
 - **`hono/jwt` `verify()` takes 3 args** — `verify(token, secret, 'HS256')`. Omitting the algorithm throws `JwtAlgorithmRequired`.
 - **Postgres UNIQUE violation = error code `23505`** — catch this in services to return a `CONFLICT` response (see `src/services/relationships.ts`).
