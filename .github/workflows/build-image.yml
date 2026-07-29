@@ -2,9 +2,9 @@ name: Build & Push Container Image
 
 on:
   push:
-    # Build on every branch except main (this includes `staging`), plus version tags.
-    # NOTE: main is intentionally excluded here; staging pushes DO trigger this workflow.
-    branches-ignore:
+    # Pre-alpha: `main` is the only branch. Builds come from main pushes and
+    # version tags — nothing else triggers this workflow.
+    branches:
       - main
     tags:
       - "v*"
@@ -23,10 +23,10 @@ env:
 
 jobs:
   # Lightweight fast-feedback checks: backend typecheck + web build.
-  # Runs on the same triggers as the image build (so it covers `staging` too).
-  # Intentionally NOT a dependency of `build`, so it never blocks existing
-  # branch/tag image builds — it is an independent signal. No Postgres is
-  # provisioned, so this stays limited to typecheck/build (no runtime tests).
+  # Runs on the same triggers as the image build. Intentionally NOT a
+  # dependency of `build`, so it never blocks the image build — it is an
+  # independent signal. No Postgres is provisioned, so this stays limited to
+  # typecheck/build (no runtime tests).
   ci:
     name: Typecheck & Web Build
     if: >-
@@ -93,13 +93,12 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # On branch push: use the branch name as the tag (staging -> :staging, moving tag)
+            # On main push: moving :main tag, plus an immutable :main-<sha> for
+            # traceability. Main builds never receive a semver/latest tag — the
+            # default flavor `latest=auto` applies `latest` ONLY on semver tag
+            # pushes, so `latest` stays a release-only pointer.
             type=ref,event=branch
-            # On staging branch push only: add an immutable, clearly-labelled :staging-<sha>
-            # tag for traceability. Staging never receives a semver/latest (production) tag:
-            # the default flavor `latest=auto` applies `latest` ONLY on semver tag pushes,
-            # so branch (incl. staging) builds are never tagged `latest`.
-            type=sha,prefix=staging-,format=short,enable=${{ github.ref == 'refs/heads/staging' }}
+            type=sha,prefix=main-,format=short,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

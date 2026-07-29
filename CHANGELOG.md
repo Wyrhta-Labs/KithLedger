@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now mounted at `/var/lib/postgresql` (PG18's declared volume) rather than the
   pre-18 `/var/lib/postgresql/data`, which would leave the container running on an
   anonymous volume that never persists.
+- Single-branch workflow for pre-alpha: `main` is the only branch, and the GHCR
+  workflow now triggers on `main` pushes plus `v*` tags instead of every branch
+  except `main`. Image tags follow: main pushes publish `:main` and an immutable
+  `:main-<sha>`; semver and `latest` remain release-tag-only. The `:staging` /
+  `:staging-<sha>` tags are no longer produced — deployments tracking `:staging`
+  must move to `:main` or a version tag.
 - Dev ports moved to **4002** (API) and **5174** (Vite) per the cross-service
   dev port allocation (Heorth 4000/5173, Feoh 4001, KithLedger 4002/5174) so
   all services can run side by side locally. Container-internal port stays 3000.
