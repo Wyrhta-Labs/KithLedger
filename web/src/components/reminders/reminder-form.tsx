@@ -11,8 +11,10 @@ import { RECURRENCE_OPTIONS } from '@/lib/constants';
 import { toApiDateTime, toDateTimeInputValue } from '@/lib/format';
 import type { Reminder } from '@/lib/types';
 
+// `personId` is required: the server's createReminderSchema wants a UUID and
+// reminders.person_id is NOT NULL, so an unset person always 400s.
 const schema = z.object({
-  personId: z.string().optional(),
+  personId: z.string().min(1, 'Person is required'),
   dueAt: z.string().min(1, 'Due date is required'),
   title: z.string().min(1, 'Title is required'),
   notes: z.string().optional(),
@@ -21,11 +23,24 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/**
+ * Wire shape. Blank nullable fields go out as `null`, not `undefined`:
+ * `updateReminder` treats `undefined` as "leave unchanged", so omitting them
+ * makes clearing notes or recurrence on an existing reminder silently fail.
+ */
+export type ReminderFormValues = {
+  personId: string;
+  dueAt: string;
+  title: string;
+  notes: string | null;
+  recurrence: string | null;
+};
+
 interface ReminderFormProps {
   reminder?: Reminder;
   defaultPersonId?: string;
   personOptions?: Array<{ id: string; name: string }>;
-  onSubmit: (data: FormValues) => Promise<void>;
+  onSubmit: (data: ReminderFormValues) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -52,12 +67,12 @@ export default function ReminderForm({
 
   const handleFormSubmit = async (values: FormValues) => {
     try {
-      const cleaned = {
-        ...values,
+      const cleaned: ReminderFormValues = {
+        personId: values.personId,
         dueAt: toApiDateTime(values.dueAt),
-        personId: values.personId || undefined,
-        notes: values.notes || undefined,
-        recurrence: values.recurrence || undefined,
+        title: values.title.trim(),
+        notes: values.notes?.trim() ? values.notes.trim() : null,
+        recurrence: values.recurrence || null,
       };
       await onSubmit(cleaned);
     } catch (e) {

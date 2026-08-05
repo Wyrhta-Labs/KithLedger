@@ -3,9 +3,10 @@ import { Cake } from 'lucide-react';
 import { usePeople } from '@/hooks/use-people';
 import { format, parseISO, setYear } from 'date-fns';
 import { isUpcomingInDays } from '@/lib/format';
+import { MAX_LIST_LIMIT } from '@/lib/constants';
 
 export default function BirthdayWidget() {
-  const { data } = usePeople({ limit: 200 });
+  const { data } = usePeople({ limit: MAX_LIST_LIMIT });
   const people = data?.data ?? [];
 
   const upcoming = people

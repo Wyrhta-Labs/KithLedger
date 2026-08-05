@@ -12,12 +12,12 @@ import InteractionForm, { type CleanInteractionFormValues } from '@/components/i
 import ReminderForm from '@/components/reminders/reminder-form';
 import type { CreatePersonInput } from '@/api/people';
 import type { CreateInteractionInput } from '@/api/interactions';
-import type { CreateReminderInput } from '@/api/reminders';
+import { MAX_LIST_LIMIT } from '@/lib/constants';
 
 export default function QuickActions() {
   const [modal, setModal] = useState<'person' | 'interaction' | 'reminder' | null>(null);
   const { toast } = useToast();
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: MAX_LIST_LIMIT });
   const createPerson = useCreatePerson();
   const createInteraction = useCreateInteraction();
   const createReminder = useCreateReminder();
@@ -82,7 +82,7 @@ export default function QuickActions() {
           <ReminderForm
             personOptions={peopleOptions}
             onSubmit={async (v) => {
-              await createReminder.mutateAsync(v as CreateReminderInput);
+              await createReminder.mutateAsync(v);
               toast('Reminder set', 'success');
               setModal(null);
             }}

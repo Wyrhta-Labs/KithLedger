@@ -11,11 +11,12 @@ export interface ListRemindersParams {
 }
 
 export interface CreateReminderInput {
-  personId?: string;
+  // Required: reminders.person_id is NOT NULL and the server demands a UUID.
+  personId: string;
   dueAt: string;
   title: string;
-  notes?: string;
-  recurrence?: string;
+  notes?: string | null;
+  recurrence?: string | null;
 }
 
 export interface UpdateReminderInput {

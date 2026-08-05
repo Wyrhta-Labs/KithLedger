@@ -8,7 +8,7 @@ import { useInteractions, useCreateInteraction, useDeleteInteraction } from '@/h
 import { usePeople } from '@/hooks/use-people';
 import { useToast } from '@/components/ui/toast';
 import { formatDateTime, interactionTypeLabel, sentimentLabel } from '@/lib/format';
-import { INTERACTION_TYPES } from '@/lib/constants';
+import { INTERACTION_TYPES, MAX_LIST_LIMIT } from '@/lib/constants';
 import InteractionForm, { type CleanInteractionFormValues } from '@/components/interactions/interaction-form';
 import type { Interaction } from '@/lib/types';
 import type { CreateInteractionInput } from '@/api/interactions';
@@ -25,7 +25,7 @@ export default function InteractionsPage() {
     limit,
     offset: page * limit,
   });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: MAX_LIST_LIMIT });
   const createMutation = useCreateInteraction();
   const deleteMutation = useDeleteInteraction();
 

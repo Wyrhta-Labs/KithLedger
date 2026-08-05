@@ -1,3 +1,11 @@
+/**
+ * Server-side cap on `limit` for every list endpoint (see the `.max(100)` in
+ * src/validators/*.ts). Requesting more returns 400, so pickers that want "all"
+ * rows must ask for exactly this. Above this many people the pickers truncate
+ * silently — the fix is server-side search in the picker, not a higher cap.
+ */
+export const MAX_LIST_LIMIT = 100;
+
 export const QUERY_KEYS = {
   people: ['people'] as const,
   person: (id: string) => ['people', id] as const,

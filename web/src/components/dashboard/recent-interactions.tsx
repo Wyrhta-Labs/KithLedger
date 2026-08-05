@@ -3,10 +3,11 @@ import { useInteractions } from '@/hooks/use-interactions';
 import { usePeople } from '@/hooks/use-people';
 import { formatRelative, interactionTypeLabel } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { MAX_LIST_LIMIT } from '@/lib/constants';
 
 export default function RecentInteractions() {
   const { data, isLoading } = useInteractions({ limit: 8 });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: MAX_LIST_LIMIT });
 
   const interactions = data?.data ?? [];
   const people = peopleData?.data ?? [];

@@ -30,6 +30,10 @@ export function toApiDateTime(localValue: string): string {
   // No trailing Z: per spec `new Date()` parses this as local time.
   const date = new Date(localValue);
   if (isNaN(date.getTime())) throw new Error('Invalid date/time');
+  // A local time inside a DST spring-forward gap does not exist and is
+  // normalized forward — in Europe/Berlin 2026-03-29T02:30 becomes 03:30. That
+  // is intentional: it matches how calendar software resolves the gap, and
+  // rejecting the input would leave the user with no way to pick that hour.
   return date.toISOString();
 }
 

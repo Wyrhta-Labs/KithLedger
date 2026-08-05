@@ -8,6 +8,7 @@ import { usePeople } from '@/hooks/use-people';
 import { useToast } from '@/components/ui/toast';
 import { relationshipTypeLabel } from '@/lib/format';
 import RelationshipForm from './relationship-form';
+import { MAX_LIST_LIMIT } from '@/lib/constants';
 
 interface RelationshipListProps {
   personId?: string;
@@ -18,7 +19,7 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
   const { toast } = useToast();
 
   const { data, isLoading } = useRelationships({ person_id: personId });
-  const { data: peopleData } = usePeople({ limit: 200 });
+  const { data: peopleData } = usePeople({ limit: MAX_LIST_LIMIT });
   const createMutation = useCreateRelationship();
   const deleteMutation = useDeleteRelationship();
 

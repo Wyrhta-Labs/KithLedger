@@ -23,7 +23,7 @@ import {
   toApiDateTime,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import ReminderForm from './reminder-form';
+import ReminderForm, { type ReminderFormValues } from './reminder-form';
 import type { Reminder } from '@/lib/types';
 
 interface ReminderListProps {
@@ -74,10 +74,14 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
 
   const handleSnooze = async () => {
     if (!snoozeId || !snoozeUntil) return;
-    await snoozeMutation.mutateAsync({ id: snoozeId, snoozeUntil: toApiDateTime(snoozeUntil) });
-    toast('Reminder snoozed', 'success');
-    setSnoozeId(null);
-    setSnoozeUntil('');
+    try {
+      await snoozeMutation.mutateAsync({ id: snoozeId, snoozeUntil: toApiDateTime(snoozeUntil) });
+      toast('Reminder snoozed', 'success');
+      setSnoozeId(null);
+      setSnoozeUntil('');
+    } catch (e) {
+      toast((e as Error).message ?? 'Failed to snooze reminder', 'error');
+    }
   };
 
   const handleDismiss = async (id: string) => {
@@ -91,8 +95,8 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
     toast('Reminder deleted', 'success');
   };
 
-  const handleCreate = async (values: Parameters<typeof createMutation.mutateAsync>[0]) => {
-    await createMutation.mutateAsync(values as Parameters<typeof createMutation.mutateAsync>[0]);
+  const handleCreate = async (values: ReminderFormValues) => {
+    await createMutation.mutateAsync(values);
     toast('Reminder created', 'success');
     setShowCreate(false);
   };

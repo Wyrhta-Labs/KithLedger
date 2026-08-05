@@ -25,13 +25,18 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/**
+ * Blank nullable fields go out as `null`, not `undefined`: `updateInteraction`
+ * treats `undefined` as "leave unchanged", so selecting "None" for channel or
+ * sentiment on an existing interaction would silently fail to clear it.
+ */
 export interface CleanInteractionFormValues {
   personId: string;
   occurredAt: string;
   type: 'meeting' | 'call' | 'message' | 'email' | 'other';
-  channel?: 'in-person' | 'phone' | 'sms' | 'email' | 'video' | 'social';
-  notes?: string;
-  sentiment?: 'positive' | 'neutral' | 'negative';
+  channel: 'in-person' | 'phone' | 'sms' | 'email' | 'video' | 'social' | null;
+  notes: string | null;
+  sentiment: 'positive' | 'neutral' | 'negative' | null;
 }
 
 interface InteractionFormProps {
@@ -70,9 +75,9 @@ export default function InteractionForm({
         personId: values.personId,
         occurredAt: toApiDateTime(values.occurredAt),
         type: values.type,
-        channel: values.channel || undefined,
-        notes: values.notes || undefined,
-        sentiment: (values.sentiment || undefined) as CleanInteractionFormValues['sentiment'],
+        channel: values.channel || null,
+        notes: values.notes?.trim() ? values.notes.trim() : null,
+        sentiment: values.sentiment || null,
       };
       await onSubmit(cleaned);
     } catch (e) {
