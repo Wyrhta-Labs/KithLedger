@@ -15,6 +15,13 @@
       "when": 1783847715097,
       "tag": "0001_vengeful_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785949395959,
+      "tag": "0002_red_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }

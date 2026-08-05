@@ -4,8 +4,11 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { BIRTHDAY_LEAD_OPTIONS } from '@/lib/birthday';
 import type { Person } from '@/lib/types';
 
 const schema = z.object({
@@ -16,6 +19,8 @@ const schema = z.object({
   tags: z.string().optional(), // comma-separated
   notes: z.string().optional(),
   avatarUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
+  createBirthdayReminder: z.boolean().optional(),
+  birthdayReminderLeadDays: z.coerce.number().int().min(0).max(365).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -34,6 +39,11 @@ export type PersonFormValues = {
   tags: string[];
   notes: string | null;
   avatarUrl: string | null;
+  /**
+   * Days before the birthday to create a recurring reminder, or `null` for "do
+   * not create one". Only ever non-null when adding a person with a birthday.
+   */
+  birthdayReminderLeadDays: number | null;
 };
 
 interface PersonFormProps {
@@ -45,9 +55,14 @@ interface PersonFormProps {
 
 export default function PersonForm({ person, onSubmit, onCancel, isLoading }: PersonFormProps) {
   const { toast } = useToast();
+  // A set `person` means edit. The birthday-reminder offer is create-only:
+  // on edit it would need to reconcile against any reminder that already
+  // exists, and every save would risk creating another.
+  const isCreate = !person;
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -59,8 +74,16 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
       tags: person?.tags?.join(', ') ?? '',
       notes: person?.notes ?? '',
       avatarUrl: person?.avatarUrl ?? '',
+      createBirthdayReminder: true,
+      birthdayReminderLeadDays: 0,
     },
   });
+
+  const birthdayValue = watch('birthday');
+  const createBirthdayReminder = watch('createBirthdayReminder');
+  // Offer the reminder only while there is actually a birthday to remind about;
+  // clearing the field hides the block and creates nothing.
+  const showBirthdayReminder = isCreate && !!birthdayValue?.trim();
 
   const handleFormSubmit = async (values: FormValues) => {
     try {
@@ -76,6 +99,10 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
         tags,
         notes: blankToNull(values.notes),
         avatarUrl: blankToNull(values.avatarUrl),
+        birthdayReminderLeadDays:
+          showBirthdayReminder && values.createBirthdayReminder
+            ? (values.birthdayReminderLeadDays ?? 0)
+            : null,
       };
       await onSubmit(cleaned);
     } catch (e) {
@@ -111,6 +138,32 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
           <Input id="tags" {...register('tags')} placeholder="friend, coworker" />
         </div>
       </div>
+      {showBirthdayReminder && (
+        <div className="rounded-md border border-purple-100 bg-purple-50 p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Checkbox id="createBirthdayReminder" {...register('createBirthdayReminder')} />
+            <Label htmlFor="createBirthdayReminder" className="cursor-pointer font-normal">
+              Create a yearly birthday reminder
+            </Label>
+          </div>
+          {createBirthdayReminder && (
+            <div className="flex items-center gap-2 pl-6">
+              <Label htmlFor="birthdayReminderLeadDays" className="shrink-0 font-normal text-gray-600">
+                Remind me
+              </Label>
+              <Select
+                id="birthdayReminderLeadDays"
+                className="max-w-40"
+                {...register('birthdayReminderLeadDays')}
+              >
+                {BIRTHDAY_LEAD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
       <div className="space-y-1">
         <Label htmlFor="avatarUrl">Avatar URL</Label>
         <Input id="avatarUrl" {...register('avatarUrl')} placeholder="https://..." />

@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, integer, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { people } from './people.js';
 
@@ -14,8 +14,22 @@ export const reminders = pgTable('reminders', {
   status: text('status').notNull().default('pending'),
   snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
   recurrence: text('recurrence'),
+  /**
+   * Distinguishes a generated birthday reminder from an ordinary one, so the
+   * dashboard's birthday widget can tell which birthdays are already tracked.
+   * Not settable via PATCH — see updateReminderSchema.
+   */
+  kind: text('kind').notNull().default('generic'),
+  /**
+   * Days before the birthday this reminder fires. NULL unless kind='birthday'.
+   * Stored so completion can recompute the next occurrence from the person's
+   * current birthday rather than blindly adding P1Y, which is off by a day
+   * across leap years for any non-zero lead.
+   */
+  leadDays: integer('lead_days'),
 }, (table) => [
   check('reminders_status_check', sql`${table.status} IN ('pending', 'done', 'snoozed', 'dismissed')`),
+  check('reminders_kind_check', sql`${table.kind} IN ('generic', 'birthday')`),
 ]);
 
 export type Reminder = typeof reminders.$inferSelect;

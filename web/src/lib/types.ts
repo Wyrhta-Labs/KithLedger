@@ -34,6 +34,8 @@ export interface Reminder {
   id: string;
   createdAt: string;
   updatedAt: string;
+  // Not nullable in the database (person_id is NOT NULL); typed as such only
+  // because older client code assumed it could be absent.
   personId: string | null;
   dueAt: string;
   title: string;
@@ -41,6 +43,9 @@ export interface Reminder {
   status: 'pending' | 'done' | 'snoozed' | 'dismissed';
   snoozedUntil: string | null;
   recurrence: string | null;
+  kind: 'generic' | 'birthday';
+  /** Days before the birthday; null unless kind is 'birthday'. */
+  leadDays: number | null;
 }
 
 export interface Relationship {

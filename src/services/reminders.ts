@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { reminders, people } from '../db/schema/index.js';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { eq, and, lte, inArray, sql } from 'drizzle-orm';
 import type { CreateReminderInput, UpdateReminderInput, ListRemindersQuery } from '../validators/reminders.js';
 
 /** Parse an ISO 8601 duration like P3M and add it to a date */
@@ -21,11 +21,50 @@ function addDuration(date: Date, duration: string): Date {
   return result;
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Next due date for a recurring birthday reminder, recomputed from the person's
+ * *current* birthday rather than by adding P1Y to the previous date.
+ *
+ * Adding P1Y is wrong for any non-zero lead: a Mar 1 birthday with a 1-day lead
+ * is due Feb 28 in a common year, and +P1Y repeats Feb 28 when the correct date
+ * in a leap year is Feb 29. Recomputing also means the reminder self-heals if
+ * the birthday is edited after the reminder was created.
+ *
+ * The UTC time-of-day of `currentDueAt` is preserved, which keeps the original
+ * "09:00 local at creation" stable year to year except across a DST rule change
+ * — an accepted tradeoff over storing a timezone per reminder.
+ */
+export function nextBirthdayDueAt(currentDueAt: Date, birthday: string, leadDays: number): Date {
+  const match = birthday.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error(`Invalid birthday: ${birthday}`);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  // The birthday occurrence this row was serving, so the next one is year + 1.
+  const served = new Date(currentDueAt.getTime() + leadDays * MS_PER_DAY);
+  const year = served.getUTCFullYear() + 1;
+
+  const nextBirthday = Date.UTC(
+    year,
+    month - 1,
+    day,
+    currentDueAt.getUTCHours(),
+    currentDueAt.getUTCMinutes(),
+    currentDueAt.getUTCSeconds(),
+    currentDueAt.getUTCMilliseconds()
+  );
+  return new Date(nextBirthday - leadDays * MS_PER_DAY);
+}
+
 export async function listReminders(query: ListRemindersQuery) {
   const conditions = [];
 
   if (query.person_id) conditions.push(eq(reminders.personId, query.person_id));
-  if (query.status) conditions.push(eq(reminders.status, query.status));
+  if (query.statuses?.length) conditions.push(inArray(reminders.status, query.statuses));
+  else if (query.status) conditions.push(eq(reminders.status, query.status));
+  if (query.kind) conditions.push(eq(reminders.kind, query.kind));
   if (query.due_before) conditions.push(lte(reminders.dueAt, new Date(query.due_before)));
   if (query.overdue === 'true') {
     conditions.push(
@@ -72,6 +111,11 @@ export async function createReminder(input: CreateReminderInput) {
       title: input.title,
       notes: input.notes ?? null,
       recurrence: input.recurrence ?? null,
+      // Must be inserted explicitly: this is an explicit column list, so
+      // omitting kind would silently fall back to the 'generic' column default
+      // and every birthday reminder would be unrecognisable to the widget.
+      kind: input.kind,
+      leadDays: input.leadDays ?? null,
     })
     .returning();
   return row!;
@@ -106,7 +150,22 @@ export async function completeReminder(id: string) {
 
     let next = null;
     if (reminder.recurrence) {
-      const nextDueAt = addDuration(reminder.dueAt, reminder.recurrence);
+      let nextDueAt: Date;
+      if (reminder.kind === 'birthday' && reminder.leadDays !== null) {
+        // Recompute from the person's current birthday. Falls back to the
+        // generic duration if they no longer have one.
+        const [person] = await tx
+          .select({ birthday: people.birthday })
+          .from(people)
+          .where(eq(people.id, reminder.personId))
+          .limit(1);
+        nextDueAt = person?.birthday
+          ? nextBirthdayDueAt(reminder.dueAt, person.birthday, reminder.leadDays)
+          : addDuration(reminder.dueAt, reminder.recurrence);
+      } else {
+        nextDueAt = addDuration(reminder.dueAt, reminder.recurrence);
+      }
+
       const [newReminder] = await tx
         .insert(reminders)
         .values({
@@ -116,6 +175,10 @@ export async function completeReminder(id: string) {
           notes: reminder.notes,
           recurrence: reminder.recurrence,
           status: 'pending',
+          // Carry the classification forward, or the successor degrades to
+          // 'generic' and the widget stops recognising the birthday.
+          kind: reminder.kind,
+          leadDays: reminder.leadDays,
         })
         .returning();
       next = newReminder;

@@ -7,12 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { usePeople, useCreatePerson, useUpdatePerson, useDeletePerson } from '@/hooks/use-people';
+import {
+  usePeople,
+  useCreatePersonWithBirthdayReminder,
+  useUpdatePerson,
+  useDeletePerson,
+} from '@/hooks/use-people';
 import { useToast } from '@/components/ui/toast';
 import { formatDate, formatBirthday } from '@/lib/format';
 import PersonForm, { type PersonFormValues } from './person-form';
 import type { Person } from '@/lib/types';
-import type { CreatePersonInput, UpdatePersonInput } from '@/api/people';
+import type { UpdatePersonInput } from '@/api/people';
 
 export default function PeopleList() {
   const [search, setSearch] = useState('');
@@ -24,7 +29,7 @@ export default function PeopleList() {
 
   const limit = 20;
   const { data, isLoading } = usePeople({ q: search || undefined, limit, offset: page * limit });
-  const createMutation = useCreatePerson();
+  const createMutation = useCreatePersonWithBirthdayReminder();
   const updateMutation = useUpdatePerson(editPerson?.id ?? '');
   const deleteMutation = useDeletePerson();
 
@@ -32,13 +37,18 @@ export default function PeopleList() {
   const people = data?.data ?? [];
 
   const handleCreate = async (values: PersonFormValues) => {
-    await createMutation.mutateAsync(values as CreatePersonInput);
-    toast('Person created', 'success');
+    const { reminderError } = await createMutation.mutateAsync(values);
+    if (reminderError) {
+      toast(`${values.name} was created, but the birthday reminder failed: ${reminderError}`, 'error');
+    } else {
+      toast('Person created', 'success');
+    }
     setShowCreate(false);
   };
 
   const handleUpdate = async (values: PersonFormValues) => {
-    await updateMutation.mutateAsync(values as UpdatePersonInput);
+    const { birthdayReminderLeadDays: _ignored, ...personFields } = values;
+    await updateMutation.mutateAsync(personFields as UpdatePersonInput);
     toast('Person updated', 'success');
     setEditPerson(null);
   };

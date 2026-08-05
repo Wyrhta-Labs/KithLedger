@@ -4,6 +4,9 @@ import type { ListResponse, SingleResponse, Reminder } from '../lib/types';
 export interface ListRemindersParams {
   person_id?: string;
   status?: string;
+  /** Comma-separated statuses; takes precedence over `status`. */
+  statuses?: string;
+  kind?: 'generic' | 'birthday';
   from?: string;
   to?: string;
   limit?: number;
@@ -17,13 +20,19 @@ export interface CreateReminderInput {
   title: string;
   notes?: string | null;
   recurrence?: string | null;
+  /** Marks a generated birthday reminder. Not changeable afterwards. */
+  kind?: 'generic' | 'birthday';
+  /** Days before the birthday; only meaningful with kind: 'birthday'. */
+  leadDays?: number | null;
 }
 
+// No `status`: the server's updateReminderSchema derives from the create schema,
+// which has no status field, so it was never accepted. Status changes go through
+// the complete/snooze/dismiss endpoints.
 export interface UpdateReminderInput {
   dueAt?: string;
   title?: string;
   notes?: string | null;
-  status?: 'pending' | 'done' | 'snoozed' | 'dismissed';
   recurrence?: string | null;
 }
 

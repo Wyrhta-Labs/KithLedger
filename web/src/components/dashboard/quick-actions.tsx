@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { UserPlus, MessageSquarePlus, BellPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { useCreatePerson } from '@/hooks/use-people';
+import { useCreatePersonWithBirthdayReminder } from '@/hooks/use-people';
 import { useCreateInteraction } from '@/hooks/use-interactions';
 import { useCreateReminder } from '@/hooks/use-reminders';
 import { usePeople } from '@/hooks/use-people';
@@ -10,7 +10,6 @@ import { useToast } from '@/components/ui/toast';
 import PersonForm, { type PersonFormValues } from '@/components/people/person-form';
 import InteractionForm, { type CleanInteractionFormValues } from '@/components/interactions/interaction-form';
 import ReminderForm from '@/components/reminders/reminder-form';
-import type { CreatePersonInput } from '@/api/people';
 import type { CreateInteractionInput } from '@/api/interactions';
 import { MAX_LIST_LIMIT } from '@/lib/constants';
 
@@ -18,7 +17,7 @@ export default function QuickActions() {
   const [modal, setModal] = useState<'person' | 'interaction' | 'reminder' | null>(null);
   const { toast } = useToast();
   const { data: peopleData } = usePeople({ limit: MAX_LIST_LIMIT });
-  const createPerson = useCreatePerson();
+  const createPerson = useCreatePersonWithBirthdayReminder();
   const createInteraction = useCreateInteraction();
   const createReminder = useCreateReminder();
 
@@ -44,8 +43,12 @@ export default function QuickActions() {
           </DialogHeader>
           <PersonForm
             onSubmit={async (v: PersonFormValues) => {
-              await createPerson.mutateAsync(v as CreatePersonInput);
-              toast('Person added', 'success');
+              const { reminderError } = await createPerson.mutateAsync(v);
+              if (reminderError) {
+                toast(`${v.name} was added, but the birthday reminder failed: ${reminderError}`, 'error');
+              } else {
+                toast('Person added', 'success');
+              }
               setModal(null);
             }}
             onCancel={() => setModal(null)}
