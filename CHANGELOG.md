@@ -35,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Trailing-slash redirects now send a **relative** `Location` ([#1]). Hono's
+  `trimTrailingSlash()` built the target from the URL the app itself sees, so the
+  301 named a scheme and host: behind a proxy that strips a path prefix the client
+  was redirected out of that prefix, and a proxy that does not preserve `Host` (or
+  that terminates TLS) leaked the internal upstream hostname or downgraded the
+  redirect to `http://`. Replaced with `src/lib/trailing-slash.ts`, which emits the
+  path plus query string only.
 - Removed an unused `declare module 'hono' { ContextVariableMap { auth } }` block in `src/app.ts` — nothing ever set or read an `auth` context variable (core declares its own `principal` variable).
 - Container image build (GHCR workflow) failing since 2026-07-13: `web/vite.config.ts` uses `path`/`__dirname` but `web/` lacked `@types/node`, so the isolated Docker web build's typecheck failed. Added `@types/node` to `web/` devDependencies (same fix Heorth received on 2026-07-14).
 
@@ -118,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Developer docs** — CLAUDE.md with architecture notes, module structure, and gotchas ([b48d3c2])
 
 [Unreleased]: https://github.com/Wyrhta-Labs/KithLedger/compare/v0.2.0...HEAD
+[#1]: https://github.com/Wyrhta-Labs/KithLedger/issues/1
 [0.2.0]: https://github.com/Wyrhta-Labs/KithLedger/commits/v0.2.0
 [87617f5]: https://github.com/Wyrhta-Labs/KithLedger/commit/87617f5
 [0.1.0]: https://github.com/Wyrhta-Labs/KithLedger/commits/v0.1.0

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
-import { trimTrailingSlash } from 'hono/trailing-slash';
+import { trimTrailingSlash } from './lib/trailing-slash.js';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { config } from './config/env.js';
 import { mountRoutes } from './routes/index.js';
