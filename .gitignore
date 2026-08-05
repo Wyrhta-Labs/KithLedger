@@ -5,6 +5,12 @@ dist/
 .DS_Store
 coverage/
 
+# Playwright e2e output (traces, failure screenshots, HTML report)
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Force-track Drizzle migration SQL (a global core.excludesFile has *.sql,
 # which would otherwise drop generated migrations from the repo).
 !src/db/migrations/*.sql

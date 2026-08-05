@@ -42,7 +42,7 @@ export default function BirthdayWidget() {
     // tracked", so the list going empty after adding a reminder does not read
     // as a bug.
     return (
-      <div className="text-sm text-gray-500">
+      <div data-testid="birthday-widget" className="text-sm text-gray-500">
         {trackedPersonIds.size > 0
           ? `No untracked birthdays in the next ${WINDOW_DAYS} days — the rest have reminders.`
           : `No upcoming birthdays in the next ${WINDOW_DAYS} days.`}
@@ -51,7 +51,7 @@ export default function BirthdayWidget() {
   }
 
   return (
-    <div className="space-y-2">
+    <div data-testid="birthday-widget" className="space-y-2">
       {upcoming.map(({ person, next }) => (
         <div
           key={person.id}

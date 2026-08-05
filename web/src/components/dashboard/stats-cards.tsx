@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { usePeople } from '@/hooks/use-people';
 import { useInteractions } from '@/hooks/use-interactions';
 import { useReminders } from '@/hooks/use-reminders';
+import { useRelationships } from '@/hooks/use-relationships';
 import { startOfMonth } from 'date-fns';
 
 export default function StatsCards() {
@@ -16,6 +17,8 @@ export default function StatsCards() {
     limit: 1,
   });
   const { data: remindersData } = useReminders({ status: 'pending', limit: 1 });
+  // limit: 1 because only meta.total is used — no need to transfer the rows.
+  const { data: relationshipsData } = useRelationships({ limit: 1 });
 
   const stats = [
     {
@@ -41,7 +44,7 @@ export default function StatsCards() {
     },
     {
       label: 'Relationships',
-      value: '—',
+      value: relationshipsData?.meta?.total ?? '—',
       icon: TrendingUp,
       color: 'text-purple-600',
       bg: 'bg-purple-50',

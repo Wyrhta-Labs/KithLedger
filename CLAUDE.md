@@ -20,6 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm test` | Run integration tests (**requires DB — see Testing**) |
 | `npm run test:watch` | Watch mode tests |
+| `npm run test:e2e` | Run Playwright browser tests (**requires a running API — see Testing**) |
+| `npm run test:e2e:ui` | Playwright interactive UI mode |
 | `npm run docker:up` | Start API + Postgres containers |
 | `npm run docker:down` | Stop containers |
 | `npm run docker:reset` | Wipe volumes and restart |
@@ -104,7 +106,35 @@ npm run docker:up   # start DB (and API)
 npm test
 ```
 
-`tests/setup.ts` runs migrations and truncates all tables before each test. Tests run in a single fork (`singleFork: true`) to avoid parallel DB conflicts.
+`tests/setup.ts` runs migrations and truncates all tables before each test. It
+**refuses to run unless the database name ends in `_test`** — it truncates every
+table, so pointing it at the dev stack would wipe real data.
+
+### End-to-end tests (`e2e/`)
+
+`npm run test:e2e` drives the real React UI in Chromium against a **running API**
+(it does not start one):
+
+```bash
+npm run docker:up                                  # API on :4002
+ADMIN_PASSWORD=<the API's admin password> npm run test:e2e
+```
+
+Playwright starts Vite itself (`webServer` in `playwright.config.ts`); `web/`'s
+proxy sends `/api` to port 4002. Override with `E2E_API_URL` / `E2E_WEB_PORT`.
+
+- **These specs write to the API's real database.** Everything they create is
+  named with the `E2E-` prefix and deleted in fixture teardown, but run them
+  against the dev stack, not anything you care about.
+- **`POST /auth/token` is rate-limited to 10 requests per 15 minutes per IP.**
+  The suite logs in once per worker and seeds the JWT into `localStorage` for the
+  rest; only `e2e/auth.spec.ts` drives the form. Several runs back to back can
+  still exhaust the window — the limiter is in-memory, so restarting the API
+  clears it.
+- Specs run serially (`workers: 1`): they share one database and assert on list
+  contents.
+- Vitest is configured to exclude `e2e/`, so `npm test` will not try to run these.
+  They are type-checked via `tsconfig.e2e.json`, which `npm run typecheck` includes.
 
 ## Gotchas
 

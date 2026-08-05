@@ -1,0 +1,18 @@
+{
+  // The root tsconfig sets rootDir: "src" and emits declarations, so the e2e
+  // specs cannot join it. This config type-checks them only — Playwright
+  // transpiles at run time and would otherwise never surface a type error.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"],
+    // addInitScript / page.evaluate bodies run in the browser, so these files
+    // legitimately reference window and localStorage.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["e2e/**/*", "playwright.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

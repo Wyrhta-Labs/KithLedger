@@ -38,7 +38,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the API — is the server running?');
   }
 
-  if (res.status === 401) {
+  // A 401 from the login endpoint means "wrong password", not "session
+  // expired" — redirecting there reloaded the login page and wiped the error
+  // message the form had just set, so a wrong password looked like nothing
+  // happened. Let the caller handle it.
+  const isLoginRequest = path.startsWith('/auth/token');
+
+  if (res.status === 401 && !isLoginRequest) {
     localStorage.removeItem('kith_jwt');
     window.location.href = '/login';
     throw new ApiError(401, 'UNAUTHORIZED', 'Session expired');
