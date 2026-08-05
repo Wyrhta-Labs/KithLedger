@@ -9,10 +9,10 @@ export function listApiKeys(): Promise<ListResponse<ApiKey>> {
   return apiGet('/auth/keys');
 }
 
-export function createApiKey(name: string, expiresAt?: string): Promise<SingleResponse<ApiKeyCreated>> {
-  return apiPost('/auth/keys', { name, expiresAt: expiresAt ?? null });
+export function createApiKey(name: string): Promise<SingleResponse<ApiKeyCreated>> {
+  return apiPost('/auth/keys', { name });
 }
 
-export function revokeApiKey(id: string): Promise<SingleResponse<{ id: string; isActive: boolean }>> {
+export function revokeApiKey(id: string): Promise<SingleResponse<{ id: string }>> {
   return apiDelete(`/auth/keys/${id}`);
 }

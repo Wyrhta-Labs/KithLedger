@@ -19,6 +19,17 @@ export const INTERACTION_TYPES = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+// Must stay in sync with CHANNELS in src/validators/interactions.ts — the
+// server rejects any other value.
+export const CHANNEL_OPTIONS = [
+  { value: 'in-person', label: 'In person' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
+  { value: 'video', label: 'Video' },
+  { value: 'social', label: 'Social' },
+] as const;
+
 export const SENTIMENT_OPTIONS = [
   { value: 'positive', label: 'Positive' },
   { value: 'neutral', label: 'Neutral' },

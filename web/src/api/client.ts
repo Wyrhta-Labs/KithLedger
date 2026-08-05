@@ -29,7 +29,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     Object.assign(headers, options.headers);
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch {
+    // fetch only rejects on transport failure (API down, dev proxy refused,
+    // offline) — never on a non-2xx status. Surface that as such.
+    throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the API — is the server running?');
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('kith_jwt');
@@ -37,13 +44,24 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     throw new ApiError(401, 'UNAUTHORIZED', 'Session expired');
   }
 
-  const json = await res.json();
+  // Not every response is JSON: a 204, a rate-limit body, or a proxy/gateway
+  // error page would otherwise throw an opaque SyntaxError here.
+  const raw = await res.text();
+  let json: any = null;
+  if (raw) {
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      if (!res.ok) throw new ApiError(res.status, 'UNKNOWN', `Request failed (HTTP ${res.status})`);
+      throw new ApiError(res.status, 'BAD_RESPONSE', 'Server returned a malformed response');
+    }
+  }
 
   if (!res.ok) {
     throw new ApiError(
       res.status,
-      json.error?.code ?? 'UNKNOWN',
-      json.error?.message ?? 'Request failed',
+      json?.error?.code ?? 'UNKNOWN',
+      json?.error?.message ?? `Request failed (HTTP ${res.status})`,
     );
   }
 

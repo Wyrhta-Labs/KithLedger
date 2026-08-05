@@ -18,6 +18,30 @@ export function formatDateTime(dateStr: string | null | undefined): string {
   }
 }
 
+/**
+ * `<input type="datetime-local">` reads and writes `YYYY-MM-DDTHH:mm` in the
+ * user's local timezone. The API requires full ISO-8601 UTC (`z.string()
+ * .datetime()`), which rejects the bare local form. These two functions are the
+ * only correct bridge — never send an input's raw value to the API, and never
+ * `.slice(0, 16)` a UTC string into an input (that shows UTC in a local widget,
+ * shifting the displayed time by the timezone offset).
+ */
+export function toApiDateTime(localValue: string): string {
+  // No trailing Z: per spec `new Date()` parses this as local time.
+  const date = new Date(localValue);
+  if (isNaN(date.getTime())) throw new Error('Invalid date/time');
+  return date.toISOString();
+}
+
+export function toDateTimeInputValue(isoStr: string | null | undefined): string {
+  if (!isoStr) return '';
+  try {
+    return format(parseISO(isoStr), "yyyy-MM-dd'T'HH:mm");
+  } catch {
+    return '';
+  }
+}
+
 export function formatRelative(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   try {

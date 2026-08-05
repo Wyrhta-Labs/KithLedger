@@ -15,7 +15,13 @@ import {
 } from '@/hooks/use-reminders';
 import { usePeople } from '@/hooks/use-people';
 import { useToast } from '@/components/ui/toast';
-import { formatDateTime, isOverdue, isDueToday, reminderStatusLabel } from '@/lib/format';
+import {
+  formatDateTime,
+  isOverdue,
+  isDueToday,
+  reminderStatusLabel,
+  toApiDateTime,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 import ReminderForm from './reminder-form';
 import type { Reminder } from '@/lib/types';
@@ -68,7 +74,7 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
 
   const handleSnooze = async () => {
     if (!snoozeId || !snoozeUntil) return;
-    await snoozeMutation.mutateAsync({ id: snoozeId, snoozeUntil });
+    await snoozeMutation.mutateAsync({ id: snoozeId, snoozeUntil: toApiDateTime(snoozeUntil) });
     toast('Reminder snoozed', 'success');
     setSnoozeId(null);
     setSnoozeUntil('');

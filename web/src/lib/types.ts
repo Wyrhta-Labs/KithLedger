@@ -22,10 +22,13 @@ export interface Interaction {
   personId: string;
   occurredAt: string;
   type: 'meeting' | 'call' | 'message' | 'email' | 'other';
-  channel: string | null;
+  channel: InteractionChannel | null;
   notes: string | null;
   sentiment: 'positive' | 'neutral' | 'negative' | null;
 }
+
+/** Mirrors CHANNELS in src/validators/interactions.ts — the server enforces it. */
+export type InteractionChannel = 'in-person' | 'phone' | 'sms' | 'email' | 'video' | 'social';
 
 export interface Reminder {
   id: string;
@@ -52,15 +55,15 @@ export interface Relationship {
   notes: string | null;
 }
 
+// api_keys has no expiry, is_active or scopes column: keys never expire, and
+// revoking deletes the row (so every listed key is by definition active).
+// Do not re-add those fields without a migration behind them.
 export interface ApiKey {
   id: string;
   createdAt: string;
   lastUsedAt: string | null;
   name: string;
   keyPrefix: string;
-  expiresAt: string | null;
-  isActive: boolean;
-  scopes: string[];
 }
 
 export interface ApiKeyCreated {
@@ -69,7 +72,6 @@ export interface ApiKeyCreated {
   key: string;
   keyPrefix: string;
   createdAt: string;
-  expiresAt: string | null;
 }
 
 export interface AuthToken {

@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
-import type { ListResponse, SingleResponse, Interaction } from '../lib/types';
+import type { ListResponse, SingleResponse, Interaction, InteractionChannel } from '../lib/types';
 
 export interface ListInteractionsParams {
   person_id?: string;
@@ -15,7 +15,7 @@ export interface CreateInteractionInput {
   personId: string;
   occurredAt: string;
   type: 'meeting' | 'call' | 'message' | 'email' | 'other';
-  channel?: string;
+  channel?: InteractionChannel | null;
   notes?: string;
   sentiment?: 'positive' | 'neutral' | 'negative';
 }
@@ -23,7 +23,7 @@ export interface CreateInteractionInput {
 export interface UpdateInteractionInput {
   occurredAt?: string;
   type?: 'meeting' | 'call' | 'message' | 'email' | 'other';
-  channel?: string | null;
+  channel?: InteractionChannel | null;
   notes?: string | null;
   sentiment?: 'positive' | 'neutral' | 'negative' | null;
 }

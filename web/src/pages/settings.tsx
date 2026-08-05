@@ -3,7 +3,6 @@ import { Plus, Trash2, Key, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -14,7 +13,6 @@ import { formatDate } from '@/lib/format';
 export default function SettingsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyExpiry, setNewKeyExpiry] = useState('');
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -33,13 +31,9 @@ export default function SettingsPage() {
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) return;
-    const res = await createMutation.mutateAsync({
-      name: newKeyName.trim(),
-      expiresAt: newKeyExpiry || undefined,
-    });
+    const res = await createMutation.mutateAsync({ name: newKeyName.trim() });
     setCreatedKey(res.data.key);
     setNewKeyName('');
-    setNewKeyExpiry('');
     setShowCreate(false);
     toast('API key created', 'success');
   };
@@ -80,8 +74,7 @@ export default function SettingsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Prefix</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Last used</TableHead>
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -93,24 +86,19 @@ export default function SettingsPage() {
                       <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{key.keyPrefix}…</code>
                     </TableCell>
                     <TableCell className="text-sm text-gray-500">{formatDate(key.createdAt)}</TableCell>
-                    <TableCell className="text-sm text-gray-500">{key.expiresAt ? formatDate(key.expiresAt) : 'Never'}</TableCell>
-                    <TableCell>
-                      <Badge variant={key.isActive ? 'success' : 'outline'}>
-                        {key.isActive ? 'Active' : 'Revoked'}
-                      </Badge>
+                    <TableCell className="text-sm text-gray-500">
+                      {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
                     </TableCell>
                     <TableCell>
-                      {key.isActive && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700"
-                          onClick={() => handleRevoke(key.id, key.name)}
-                          disabled={revokeMutation.isPending}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleRevoke(key.id, key.name)}
+                        disabled={revokeMutation.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -135,15 +123,6 @@ export default function SettingsPage() {
                 onChange={(e) => setNewKeyName(e.target.value)}
                 placeholder="My integration"
                 autoFocus
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="keyExpiry">Expiry (optional)</Label>
-              <Input
-                id="keyExpiry"
-                type="datetime-local"
-                value={newKeyExpiry}
-                onChange={(e) => setNewKeyExpiry(e.target.value)}
               />
             </div>
           </div>

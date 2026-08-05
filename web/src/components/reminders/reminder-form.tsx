@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { RECURRENCE_OPTIONS } from '@/lib/constants';
+import { toApiDateTime, toDateTimeInputValue } from '@/lib/format';
 import type { Reminder } from '@/lib/types';
 
 const schema = z.object({
@@ -42,7 +43,7 @@ export default function ReminderForm({
     resolver: zodResolver(schema),
     defaultValues: {
       personId: reminder?.personId ?? defaultPersonId ?? '',
-      dueAt: reminder?.dueAt ? reminder.dueAt.slice(0, 16) : '',
+      dueAt: toDateTimeInputValue(reminder?.dueAt),
       title: reminder?.title ?? '',
       notes: reminder?.notes ?? '',
       recurrence: reminder?.recurrence ?? '',
@@ -53,6 +54,7 @@ export default function ReminderForm({
     try {
       const cleaned = {
         ...values,
+        dueAt: toApiDateTime(values.dueAt),
         personId: values.personId || undefined,
         notes: values.notes || undefined,
         recurrence: values.recurrence || undefined,

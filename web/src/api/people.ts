@@ -13,12 +13,12 @@ export interface ListPeopleParams {
 
 export interface CreatePersonInput {
   name: string;
-  email?: string;
-  phone?: string;
-  birthday?: string;
+  email?: string | null;
+  phone?: string | null;
+  birthday?: string | null;
   tags?: string[];
-  notes?: string;
-  avatarUrl?: string;
+  notes?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface UpdatePersonInput {

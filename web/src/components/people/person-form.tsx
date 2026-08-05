@@ -20,7 +20,21 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export type PersonFormValues = Omit<FormValues, 'tags'> & { tags: string[] };
+/**
+ * Wire shape sent to the API. Empty inputs must be `null`, not `''` — the
+ * server's optional fields are `z.string().email()/.url()/regex(...)` and
+ * reject the empty string with VALIDATION_ERROR. `null` is accepted on create
+ * and clears the column on update.
+ */
+export type PersonFormValues = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  birthday: string | null;
+  tags: string[];
+  notes: string | null;
+  avatarUrl: string | null;
+};
 
 interface PersonFormProps {
   person?: Person;
@@ -53,7 +67,16 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
       const tags = values.tags
         ? values.tags.split(',').map((t) => t.trim()).filter(Boolean)
         : [];
-      const cleaned: PersonFormValues = { ...values, tags };
+      const blankToNull = (v: string | undefined) => (v?.trim() ? v.trim() : null);
+      const cleaned: PersonFormValues = {
+        name: values.name.trim(),
+        email: blankToNull(values.email),
+        phone: blankToNull(values.phone),
+        birthday: blankToNull(values.birthday),
+        tags,
+        notes: blankToNull(values.notes),
+        avatarUrl: blankToNull(values.avatarUrl),
+      };
       await onSubmit(cleaned);
     } catch (e) {
       toast((e as Error).message ?? 'Failed to save person', 'error');

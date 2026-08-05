@@ -7,14 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
-import { INTERACTION_TYPES, SENTIMENT_OPTIONS } from '@/lib/constants';
+import { INTERACTION_TYPES, SENTIMENT_OPTIONS, CHANNEL_OPTIONS } from '@/lib/constants';
+import { toApiDateTime, toDateTimeInputValue } from '@/lib/format';
 import type { Interaction } from '@/lib/types';
 
 const schema = z.object({
   personId: z.string().min(1, 'Person is required'),
   occurredAt: z.string().min(1, 'Date is required'),
   type: z.enum(['meeting', 'call', 'message', 'email', 'other']),
-  channel: z.string().optional(),
+  channel: z
+    .enum(['in-person', 'phone', 'sms', 'email', 'video', 'social'])
+    .optional()
+    .or(z.literal('')),
   notes: z.string().optional(),
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional().or(z.literal('')),
 });
@@ -25,7 +29,7 @@ export interface CleanInteractionFormValues {
   personId: string;
   occurredAt: string;
   type: 'meeting' | 'call' | 'message' | 'email' | 'other';
-  channel?: string;
+  channel?: 'in-person' | 'phone' | 'sms' | 'email' | 'video' | 'social';
   notes?: string;
   sentiment?: 'positive' | 'neutral' | 'negative';
 }
@@ -52,9 +56,7 @@ export default function InteractionForm({
     resolver: zodResolver(schema),
     defaultValues: {
       personId: interaction?.personId ?? defaultPersonId ?? '',
-      occurredAt: interaction?.occurredAt
-        ? interaction.occurredAt.slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
+      occurredAt: toDateTimeInputValue(interaction?.occurredAt ?? new Date().toISOString()),
       type: interaction?.type ?? 'meeting',
       channel: interaction?.channel ?? '',
       notes: interaction?.notes ?? '',
@@ -66,7 +68,7 @@ export default function InteractionForm({
     try {
       const cleaned: CleanInteractionFormValues = {
         personId: values.personId,
-        occurredAt: values.occurredAt,
+        occurredAt: toApiDateTime(values.occurredAt),
         type: values.type,
         channel: values.channel || undefined,
         notes: values.notes || undefined,
@@ -110,7 +112,12 @@ export default function InteractionForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <Label htmlFor="channel">Channel</Label>
-          <Input id="channel" {...register('channel')} placeholder="Zoom, phone, etc." />
+          <Select id="channel" {...register('channel')}>
+            <option value="">None</option>
+            {CHANNEL_OPTIONS.map((ch) => (
+              <option key={ch.value} value={ch.value}>{ch.label}</option>
+            ))}
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor="sentiment">Sentiment</Label>
