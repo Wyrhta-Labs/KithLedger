@@ -1,6 +1,6 @@
 {
   "name": "kithledger",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "API-first database for tracking and nurturing personal relationships",
   "type": "module",
   "scripts": {
