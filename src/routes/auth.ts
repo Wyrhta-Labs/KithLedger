@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { ok, err, rateLimit } from '@wyrhta/core/http';
+import { validationError } from '../lib/validation.js';
 import { logEvent } from '@wyrhta/core/lib';
 import { identity, requireJwt, getAdminUser, ADMIN_EMAIL } from '../identity.js';
 
@@ -25,7 +26,7 @@ function getIp(c: Parameters<ReturnType<typeof rateLimit>>[0]): string {
 authRouter.post('/token', rateLimit(), async (c) => {
   const body = tokenSchema.safeParse(await c.req.json());
   if (!body.success) {
-    return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+    return validationError(c, body.error);
   }
 
   const ip = getIp(c);
@@ -45,13 +46,24 @@ authRouter.post('/token', rateLimit(), async (c) => {
 authRouter.get('/keys', requireJwt, async (c) => {
   const admin = await getAdminUser();
   const rows = await identity.listApiKeys(admin.id);
-  return ok(c, rows);
+  // Core names the column `prefix`; POST /keys already returns it as
+  // `keyPrefix`. Normalize here so both endpoints expose one field name.
+  return ok(
+    c,
+    rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      keyPrefix: row.prefix,
+      lastUsedAt: row.lastUsedAt,
+      createdAt: row.createdAt,
+    }))
+  );
 });
 
 authRouter.post('/keys', requireJwt, async (c) => {
   const body = createKeySchema.safeParse(await c.req.json());
   if (!body.success) {
-    return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+    return validationError(c, body.error);
   }
 
   const admin = await getAdminUser();

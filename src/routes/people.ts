@@ -3,6 +3,7 @@ import { requireAuth } from '../identity.js';
 import * as service from '../services/people.js';
 import { createPersonSchema, updatePersonSchema, listPeopleQuerySchema } from '../validators/people.js';
 import { ok, err } from '@wyrhta/core/http';
+import { validationError } from '../lib/validation.js';
 
 export const peopleRouter = new Hono();
 
@@ -10,7 +11,7 @@ peopleRouter.use('*', requireAuth);
 
 peopleRouter.get('/', async (c) => {
   const query = listPeopleQuerySchema.safeParse(c.req.query());
-  if (!query.success) return err(c, 'VALIDATION_ERROR', 'Invalid query parameters', 400);
+  if (!query.success) return validationError(c, query.error, 'query parameters');
 
   const { rows, total, limit, offset } = await service.listPeople(query.data);
   return ok(c, rows, { total, limit, offset });
@@ -18,7 +19,7 @@ peopleRouter.get('/', async (c) => {
 
 peopleRouter.post('/', async (c) => {
   const body = createPersonSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   const person = await service.createPerson(body.data);
   return ok(c, person, undefined, 201);
@@ -32,7 +33,7 @@ peopleRouter.get('/:id', async (c) => {
 
 peopleRouter.patch('/:id', async (c) => {
   const body = updatePersonSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   const person = await service.updatePerson(c.req.param('id'), body.data);
   if (!person) return err(c, 'NOT_FOUND', 'Person not found', 404);

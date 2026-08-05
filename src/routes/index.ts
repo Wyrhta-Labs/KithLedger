@@ -9,6 +9,7 @@ import * as relationshipService from '../services/relationships.js';
 import { requireAuth } from '../identity.js';
 import { graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
+import { validationError } from '../lib/validation.js';
 
 export function mountRoutes(app: Hono) {
   app.route('/', healthRouter);
@@ -21,7 +22,7 @@ export function mountRoutes(app: Hono) {
   // Graph endpoint nested under people
   app.get('/api/v1/people/:id/graph', requireAuth, async (c) => {
     const query = graphQuerySchema.safeParse(c.req.query());
-    if (!query.success) return err(c, 'VALIDATION_ERROR', 'Invalid query parameters', 400);
+    if (!query.success) return validationError(c, query.error, 'query parameters');
 
     const result = await relationshipService.getPersonGraph(c.req.param('id'), query.data.depth);
     if (!result) return err(c, 'NOT_FOUND', 'Person not found', 404);

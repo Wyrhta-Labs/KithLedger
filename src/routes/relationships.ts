@@ -3,6 +3,7 @@ import { requireAuth } from '../identity.js';
 import * as service from '../services/relationships.js';
 import { createRelationshipSchema, updateRelationshipSchema, listRelationshipsQuerySchema, graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
+import { validationError } from '../lib/validation.js';
 
 export const relationshipsRouter = new Hono();
 
@@ -10,7 +11,7 @@ relationshipsRouter.use('*', requireAuth);
 
 relationshipsRouter.get('/', async (c) => {
   const query = listRelationshipsQuerySchema.safeParse(c.req.query());
-  if (!query.success) return err(c, 'VALIDATION_ERROR', 'Invalid query parameters', 400);
+  if (!query.success) return validationError(c, query.error, 'query parameters');
 
   const { rows, total, limit, offset } = await service.listRelationships(query.data);
   return ok(c, rows, { total, limit, offset });
@@ -18,7 +19,7 @@ relationshipsRouter.get('/', async (c) => {
 
 relationshipsRouter.post('/', async (c) => {
   const body = createRelationshipSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   try {
     const relationship = await service.createRelationship(body.data);
@@ -44,7 +45,7 @@ relationshipsRouter.get('/:id', async (c) => {
 
 relationshipsRouter.patch('/:id', async (c) => {
   const body = updateRelationshipSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   const relationship = await service.updateRelationship(c.req.param('id'), body.data);
   if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);

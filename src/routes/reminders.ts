@@ -3,6 +3,7 @@ import { requireAuth } from '../identity.js';
 import * as service from '../services/reminders.js';
 import { createReminderSchema, updateReminderSchema, listRemindersQuerySchema, snoozeReminderSchema } from '../validators/reminders.js';
 import { ok, err } from '@wyrhta/core/http';
+import { validationError } from '../lib/validation.js';
 
 export const remindersRouter = new Hono();
 
@@ -10,7 +11,7 @@ remindersRouter.use('*', requireAuth);
 
 remindersRouter.get('/', async (c) => {
   const query = listRemindersQuerySchema.safeParse(c.req.query());
-  if (!query.success) return err(c, 'VALIDATION_ERROR', 'Invalid query parameters', 400);
+  if (!query.success) return validationError(c, query.error, 'query parameters');
 
   const { rows, total, limit, offset } = await service.listReminders(query.data);
   return ok(c, rows, { total, limit, offset });
@@ -18,7 +19,7 @@ remindersRouter.get('/', async (c) => {
 
 remindersRouter.post('/', async (c) => {
   const body = createReminderSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   try {
     const reminder = await service.createReminder(body.data);
@@ -39,7 +40,7 @@ remindersRouter.get('/:id', async (c) => {
 
 remindersRouter.patch('/:id', async (c) => {
   const body = updateReminderSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   const reminder = await service.updateReminder(c.req.param('id'), body.data);
   if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
@@ -60,7 +61,7 @@ remindersRouter.post('/:id/complete', async (c) => {
 
 remindersRouter.post('/:id/snooze', async (c) => {
   const body = snoozeReminderSchema.safeParse(await c.req.json());
-  if (!body.success) return err(c, 'VALIDATION_ERROR', 'Invalid request body', 400);
+  if (!body.success) return validationError(c, body.error);
 
   const reminder = await service.snoozeReminder(c.req.param('id'), body.data.snooze_until);
   if (!reminder) return err(c, 'NOT_FOUND', 'Reminder not found', 404);
