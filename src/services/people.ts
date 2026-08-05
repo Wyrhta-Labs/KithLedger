@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { people } from '../db/schema/index.js';
-import { eq, ilike, or, sql, asc, desc } from 'drizzle-orm';
+import { eq, ilike, and, or, sql, asc, desc } from 'drizzle-orm';
 import type { CreatePersonInput, UpdatePersonInput, ListPeopleQuery } from '../validators/people.js';
 
 export async function listPeople(query: ListPeopleQuery) {
@@ -28,8 +28,12 @@ export async function listPeople(query: ListPeopleQuery) {
     conditions.push(sql`EXTRACT(MONTH FROM ${people.birthday}) = ${query.birthday_month}`);
   }
 
-  if (conditions.length > 0) {
-    baseQuery = baseQuery.where(or(...conditions.map((c) => c!)));
+  // AND, matching the other three list services: supplying more filters must
+  // narrow the result. OR-ing them widened it, so `?q=jane&birthday_month=3`
+  // returned everyone named jane *plus* everyone born in March.
+  const where = conditions.length > 0 ? and(...conditions.map((c) => c!)) : undefined;
+  if (where) {
+    baseQuery = baseQuery.where(where);
   }
 
   const orderCol = query.sort === 'created_at'
@@ -47,9 +51,13 @@ export async function listPeople(query: ListPeopleQuery) {
 
   const rows = await baseQuery.limit(limit).offset(offset);
 
+  // The count must honour the same filters, or `total` describes a different
+  // result set than `rows` and every paginated search reports the wrong number
+  // of pages.
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
-    .from(people);
+    .from(people)
+    .where(where);
 
   return { rows, total: count, limit, offset };
 }

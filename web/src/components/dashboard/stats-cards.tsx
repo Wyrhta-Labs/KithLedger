@@ -3,12 +3,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { usePeople } from '@/hooks/use-people';
 import { useInteractions } from '@/hooks/use-interactions';
 import { useReminders } from '@/hooks/use-reminders';
-import { startOfMonth, formatISO } from 'date-fns';
+import { startOfMonth } from 'date-fns';
 
 export default function StatsCards() {
   const { data: peopleData } = usePeople({ limit: 1 });
   const { data: interactionsData } = useInteractions({
-    from: formatISO(startOfMonth(new Date())),
+    // toISOString, not formatISO: the latter emits a local offset
+    // (2026-08-01T00:00:00+02:00) and the server's z.string().datetime()
+    // accepts only UTC `Z`, so this request always returned 400 and the stat
+    // rendered as an em dash.
+    from: startOfMonth(new Date()).toISOString(),
     limit: 1,
   });
   const { data: remindersData } = useReminders({ status: 'pending', limit: 1 });
