@@ -50,6 +50,13 @@
       "when": 1787093947828,
       "tag": "0006_deep_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787096436888,
+      "tag": "0007_hot_purifiers",
+      "breakpoints": true
     }
   ]
 }

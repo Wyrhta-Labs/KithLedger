@@ -224,6 +224,64 @@ export function visibleTo(entity: ScopedEntity, scope: Scope, alias = entity.tab
   )`;
 }
 
+/**
+ * THE DELETE PREDICATE (ADR 0004 §4, task B9). Deliberately NARROWER than
+ * {@link visibleTo}, and narrower than the content-edit rule:
+ *
+ *   | state       | read              | edit content      | delete           |
+ *   |-------------|-------------------|-------------------|------------------|
+ *   | `private`   | owner             | owner             | owner            |
+ *   | `shared`    | owner + share set | owner + share set | **owner only**   |
+ *   | `household` | all members       | all members       | all members      |
+ *
+ *     visibility = 'household' OR owner_id = :me
+ *
+ * WHY DELETE SPLITS FROM EDIT. B6 made both follow read scope on one argument:
+ * `household` is the DEFAULT state, so an owner-only write rule would make the
+ * household's own address book read-only for everyone except whoever typed
+ * each row in first. That argument is about `household` items and it is
+ * untouched — they stay deletable by any member, because an item only its
+ * author can remove outlives its usefulness the moment the author stops
+ * caring about it, and for shared household data that is the common case.
+ *
+ * It never covered `shared`, though. A `shared` item is a carve-out its owner
+ * made deliberately for a named audience; letting a member of that audience
+ * destroy it turns "I let you read this" into "I let you take this away from
+ * me", which is not what granting read access means. An edit is recoverable in
+ * principle and now leaves a trace (`updated_by`); a delete is neither.
+ * `private` is unchanged — nobody else can see it, so nobody else can reach it.
+ *
+ * WHERE IT IS APPLIED. Both in a pre-check (so the caller gets 403 rather than
+ * a silent no-op) and in the DELETE's own `where` alongside {@link visibleTo}
+ * (so a `shared` -> `household` flip racing the statement cannot widen it).
+ * The 404/403 split is the caller's job and is NOT a §3.1 violation: 404 when
+ * the item is outside the scope entirely, 403 only for an item already visible
+ * to this caller, where refusing discloses nothing they did not already know —
+ * exactly the line B6 drew for the `NOT_OWNER` governance gate.
+ */
+export function deletableBy(entity: ScopedEntity, scope: Scope, alias = entity.table): SQL {
+  const t = ident(alias);
+  // A read-only scope reaches neither this nor the statement it guards
+  // (`ownerFor` throws first). `false` rather than a thrown error so that the
+  // predicate is total: a scope with no member owns nothing and may delete
+  // nothing.
+  if (scope.kind !== 'member') return sql`false`;
+  return sql`(${t}."visibility" = 'household' OR ${t}."owner_id" = ${scope.memberId}::uuid)`;
+}
+
+/**
+ * The same rule as {@link deletableBy}, evaluated in TypeScript against a row
+ * the caller has already read. One rule, two renderings — kept adjacent so
+ * they cannot drift, and both are needed: this one produces the 403, the SQL
+ * one closes the window between reading the row and deleting it.
+ */
+export function canDelete(
+  scope: Scope,
+  row: { visibility: string; ownerId: string | null },
+): boolean {
+  return row.visibility === 'household' || ownsRow(scope, row.ownerId);
+}
+
 /** Either the pool client or an open transaction. */
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 

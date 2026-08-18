@@ -67,3 +67,51 @@ export const visibilityCheck = (tableName: string, column: AnyPgColumn) =>
  */
 export const ownerIdColumn = () =>
   uuid('owner_id').notNull().references(() => users.id, { onDelete: 'restrict' });
+
+/**
+ * The `updated_by` column, identical on all four domain tables (task B9).
+ *
+ * WHAT IT IS FOR. `created_at`/`updated_at` record WHEN a row last changed but
+ * never WHO changed it, and B6 made that gap load-bearing: content edits
+ * deliberately follow READ scope, so any member a `shared` item reaches — and
+ * every member, for a `household` item — may rewrite it. Before this column,
+ * a member editing another member's shared note left no trace whatsoever. This
+ * is that trace: the principal that performed the last write, stamped in the
+ * same place `owner_id` is stamped from `ownerFor(scope)`.
+ *
+ * It is PROVENANCE, not authorization. Nothing in `src/services/scope.ts`
+ * reads it; no predicate branches on it; it can never widen or narrow what
+ * anybody may see. Ownership answers "whose is this"; this answers "who
+ * touched it last", and those are different questions with different lifetimes.
+ *
+ * ── ON DELETE SET NULL, AND WHY NOT RESTRICT ─────────────────────────────────
+ *
+ * `owner_id` is RESTRICT because ownership is a LIVE fact the access-control
+ * model depends on: an ownerless row is one the scope predicate cannot
+ * classify, so `DELETE FROM users` must fail until B9's offboarding has
+ * decided what becomes of the member's items. None of that reasoning transfers
+ * here:
+ *
+ *  - RESTRICT would be actively wrong. A member who owns nothing but once
+ *    corrected a typo in somebody else's household note would be undeletable,
+ *    and the only way to finish offboarding them would be to REWRITE that
+ *    stamp — i.e. to fabricate the history the column exists to record. A
+ *    provenance column must never be able to veto a lifecycle operation.
+ *  - CASCADE is absurd: it would delete the household's data because the
+ *    person who last edited it left.
+ *  - SET NULL is the honest one. The row survives unchanged, and NULL says
+ *    exactly what is true afterwards: the principal that last wrote this is no
+ *    longer known to this service. Nothing is reattributed to anybody — the
+ *    alternative of "reassign the stamp to the new owner" would assert an edit
+ *    that never happened.
+ *
+ * NULLABLE follows from SET NULL, and the same NULL is what pre-B9 rows carry:
+ * "not recorded" has exactly one representation. See `0007_*.sql` for why
+ * those rows are deliberately NOT backfilled to a plausible value.
+ *
+ * No index: nothing filters or joins on this column. The only statement that
+ * scans it is the SET NULL fired by a once-per-offboarding `DELETE FROM users`
+ * over four household-sized tables.
+ */
+export const updatedByColumn = () =>
+  uuid('updated_by').references(() => users.id, { onDelete: 'set null' });

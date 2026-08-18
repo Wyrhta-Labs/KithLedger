@@ -1,6 +1,6 @@
 import { pgTable, text, uuid, timestamp, date, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { ownerIdColumn, visibilityColumn, visibilityCheck } from './visibility.js';
+import { ownerIdColumn, updatedByColumn, visibilityColumn, visibilityCheck } from './visibility.js';
 
 export const people = pgTable('people', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -20,6 +20,12 @@ export const people = pgTable('people', {
    */
   ownerId: ownerIdColumn(),
   visibility: visibilityColumn(),
+  /**
+   * ADR 0004 §4 / B9 — WHO last wrote this row. Provenance only; see
+   * `visibility.ts` for the semantics and for why this one is SET NULL
+   * where `owner_id` is RESTRICT.
+   */
+  updatedBy: updatedByColumn(),
 }, (table) => [
   visibilityCheck('people', table.visibility),
   index('people_owner_id_idx').on(table.ownerId),

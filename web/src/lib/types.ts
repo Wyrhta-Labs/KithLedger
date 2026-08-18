@@ -23,6 +23,15 @@ export type Visibility = 'private' | 'shared' | 'household';
 export interface Owned {
   ownerId: string | null;
   visibility: Visibility;
+  /**
+   * ADR 0004 §4 / B9 — WHO last wrote this row, which `updatedAt` never said.
+   * Provenance only: nothing about what you may see or do follows from it.
+   * Null means "not recorded" — either the row predates the column, or the
+   * principal that last wrote it has since been offboarded (ON DELETE SET
+   * NULL). Not a fallback to the owner: the two are routinely different
+   * people, which is the entire point of the field.
+   */
+  updatedBy: string | null;
 }
 
 export interface Person extends Owned {

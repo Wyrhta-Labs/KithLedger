@@ -5,6 +5,7 @@ import { peopleRouter } from './people.js';
 import { interactionsRouter } from './interactions.js';
 import { remindersRouter } from './reminders.js';
 import { relationshipsRouter } from './relationships.js';
+import { offboardingRouter } from './offboarding.js';
 import * as relationshipService from '../services/relationships.js';
 import { requireAuth, requireDataAccess } from '../identity.js';
 import { scopeFor } from '../services/scope.js';
@@ -19,6 +20,10 @@ export function mountRoutes(app: Hono) {
   app.route('/api/v1/interactions', interactionsRouter);
   app.route('/api/v1/reminders', remindersRouter);
   app.route('/api/v1/relationships', relationshipsRouter);
+  // ADR 0004 §4 / B9 — reassign-on-offboarding. Mounted under `/members`
+  // but deliberately NOT a domain router: it has no visibility scope, reads
+  // no items and returns none. See `src/routes/offboarding.ts`.
+  app.route('/api/v1/members', offboardingRouter);
 
   // Graph endpoint nested under people
   app.get('/api/v1/people/:id/graph', requireAuth, requireDataAccess, async (c) => {

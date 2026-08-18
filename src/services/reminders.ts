@@ -7,6 +7,8 @@ import {
   REMINDERS_SCOPE,
   REMINDER_SHARE_TARGET,
   NOT_OWNER,
+  canDelete,
+  deletableBy,
   ownerFor,
   ownsRow,
   replaceShareSet,
@@ -138,6 +140,8 @@ export async function createReminder(scope: Scope, input: CreateReminderInput) {
         kind: input.kind,
         leadDays: input.leadDays ?? null,
         ownerId,
+        // B9: the creator IS the last writer at insert time.
+        updatedBy: ownerId,
         ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
       })
       .returning();
@@ -150,7 +154,10 @@ export async function createReminder(scope: Scope, input: CreateReminderInput) {
 }
 
 export async function updateReminder(scope: Scope, id: string, input: UpdateReminderInput) {
-  ownerFor(scope);
+  // B9: the acting principal, stamped as `updated_by` below. `ownerFor` is
+  // also the read-only-scope refusal — the household dashboard principal has
+  // no member id, so it cannot be the author of a write.
+  const actor = ownerFor(scope);
 
   const current = await getReminder(scope, id);
   if (!current) return null;
@@ -160,7 +167,7 @@ export async function updateReminder(scope: Scope, id: string, input: UpdateRemi
     throw new Error(NOT_OWNER);
   }
 
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const updates: Record<string, unknown> = { updatedAt: new Date(), updatedBy: actor };
   if (input.dueAt !== undefined) updates['dueAt'] = new Date(input.dueAt);
   if (input.title !== undefined) updates['title'] = input.title;
   if (input.notes !== undefined) updates['notes'] = input.notes;
@@ -181,17 +188,33 @@ export async function updateReminder(scope: Scope, id: string, input: UpdateRemi
   });
 }
 
+/**
+ * ADR 0004 §4 (task B9). Delete is NARROWER than read and narrower than a
+ * content edit: `household` items may be removed by any member, but a
+ * `private` or `shared` one only by its owner. See {@link deletableBy} for the
+ * argument. The 404 / 403 split is deliberate and is not a §3.1 leak — an item
+ * outside the scope is `null` here and 404s at the route exactly as a
+ * non-existent id does, while `NOT_OWNER` is thrown only for an item the
+ * caller can already see.
+ */
 export async function deleteReminder(scope: Scope, id: string) {
   ownerFor(scope);
+
+  const current = await getReminder(scope, id);
+  if (!current) return null;
+  if (!canDelete(scope, current)) throw new Error(NOT_OWNER);
+
   const [row] = await db
     .delete(reminders)
-    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
+    // Both predicates again, on the statement itself: the row could have been
+    // flipped `household` -> `private` between the check above and here.
+    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope), deletableBy(REMINDERS_SCOPE, scope)))
     .returning();
   return row ?? null;
 }
 
 export async function completeReminder(scope: Scope, id: string) {
-  ownerFor(scope);
+  const actor = ownerFor(scope);
 
   // ADR 0004 §3.1 — scoped existence pre-check: completing a reminder you
   // cannot see is NOT FOUND, not forbidden.
@@ -201,7 +224,7 @@ export async function completeReminder(scope: Scope, id: string) {
   return db.transaction(async (tx) => {
     const [updated] = await tx
       .update(reminders)
-      .set({ status: 'done', updatedAt: new Date() })
+      .set({ status: 'done', updatedAt: new Date(), updatedBy: actor })
       .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
       .returning();
     if (!updated) return null;
@@ -245,6 +268,13 @@ export async function completeReminder(scope: Scope, id: string) {
           // unusable for anything periodic.
           ownerId: reminder.ownerId,
           visibility: reminder.visibility,
+          // ...but NOT the writer. B9: `owner_id` is inherited from the
+          // commitment, `updated_by` records who actually ticked the box, and
+          // for a shared or household reminder those are routinely different
+          // people. This is the one insert in the service where creator and
+          // owner provably diverge — see `0007_*.sql` for why that makes a
+          // "creator == owner" backfill of pre-B9 rows unsafe.
+          updatedBy: actor,
         })
         .returning();
       next = newReminder ?? null;
@@ -267,20 +297,20 @@ export async function completeReminder(scope: Scope, id: string) {
 }
 
 export async function snoozeReminder(scope: Scope, id: string, snoozeUntil: string) {
-  ownerFor(scope);
+  const actor = ownerFor(scope);
   const [row] = await db
     .update(reminders)
-    .set({ status: 'snoozed', snoozedUntil: new Date(snoozeUntil), updatedAt: new Date() })
+    .set({ status: 'snoozed', snoozedUntil: new Date(snoozeUntil), updatedAt: new Date(), updatedBy: actor })
     .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
     .returning();
   return row ?? null;
 }
 
 export async function dismissReminder(scope: Scope, id: string) {
-  ownerFor(scope);
+  const actor = ownerFor(scope);
   const [row] = await db
     .update(reminders)
-    .set({ status: 'dismissed', updatedAt: new Date() })
+    .set({ status: 'dismissed', updatedAt: new Date(), updatedBy: actor })
     .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
     .returning();
   return row ?? null;

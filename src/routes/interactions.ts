@@ -74,7 +74,20 @@ interactionsRouter.patch('/:id', async (c) => {
 });
 
 interactionsRouter.delete('/:id', async (c) => {
-  const interaction = await service.deleteInteraction(scope(c), c.req.param('id'));
-  if (!interaction) return err(c, 'NOT_FOUND', 'Interaction not found', 404);
-  return ok(c, { id: interaction.id });
+  // ADR 0004 §4 (B9) — deleting a `private` or `shared` item is OWNER ONLY;
+  // `household` items stay deletable by any member. 403 (not 404) for a
+  // non-owner, for the same reason the PATCH governance gate uses 403: the
+  // item is already visible to this caller, so the refusal tells them nothing
+  // new. An item OUTSIDE the scope never reaches the check — the service
+  // returns null and this 404s, exactly as a non-existent id does (§3.1).
+  try {
+    const interaction = await service.deleteInteraction(scope(c), c.req.param('id'));
+    if (!interaction) return err(c, 'NOT_FOUND', 'Interaction not found', 404);
+    return ok(c, { id: interaction.id });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === NOT_OWNER) {
+      return err(c, 'FORBIDDEN', 'Only the owner may delete a private or shared item', 403);
+    }
+    throw e;
+  }
 });

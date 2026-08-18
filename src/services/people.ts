@@ -6,6 +6,8 @@ import {
   PEOPLE_SCOPE,
   PERSON_SHARE_TARGET,
   NOT_OWNER,
+  canDelete,
+  deletableBy,
   ownerFor,
   ownsRow,
   replaceShareSet,
@@ -121,6 +123,8 @@ export async function createPerson(scope: Scope, input: CreatePersonInput) {
         // ADR 0004 §4: the creator owns what they create, and `visibility`
         // omitted means the column default (`household`).
         ownerId,
+        // B9: the creator IS the last writer at insert time.
+        updatedBy: ownerId,
         ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
       })
       .returning();
@@ -133,7 +137,10 @@ export async function createPerson(scope: Scope, input: CreatePersonInput) {
 }
 
 export async function updatePerson(scope: Scope, id: string, input: UpdatePersonInput) {
-  ownerFor(scope);
+  // B9: the acting principal, stamped as `updated_by` below. `ownerFor` is
+  // also the read-only-scope refusal — the household dashboard principal has
+  // no member id, so it cannot be the author of a write.
+  const actor = ownerFor(scope);
 
   const current = await getPerson(scope, id);
   if (!current) return null;
@@ -147,7 +154,7 @@ export async function updatePerson(scope: Scope, id: string, input: UpdatePerson
     throw new Error(NOT_OWNER);
   }
 
-  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const updates: Record<string, unknown> = { updatedAt: new Date(), updatedBy: actor };
   if (input.name !== undefined) updates['name'] = input.name;
   if (input.email !== undefined) updates['email'] = input.email;
   if (input.phone !== undefined) updates['phone'] = input.phone;
@@ -173,11 +180,27 @@ export async function updatePerson(scope: Scope, id: string, input: UpdatePerson
   });
 }
 
+/**
+ * ADR 0004 §4 (task B9). Delete is NARROWER than read and narrower than a
+ * content edit: `household` items may be removed by any member, but a
+ * `private` or `shared` one only by its owner. See {@link deletableBy} for the
+ * argument. The 404 / 403 split is deliberate and is not a §3.1 leak — an item
+ * outside the scope is `null` here and 404s at the route exactly as a
+ * non-existent id does, while `NOT_OWNER` is thrown only for an item the
+ * caller can already see.
+ */
 export async function deletePerson(scope: Scope, id: string) {
   ownerFor(scope);
+
+  const current = await getPerson(scope, id);
+  if (!current) return null;
+  if (!canDelete(scope, current)) throw new Error(NOT_OWNER);
+
   const [row] = await db
     .delete(people)
-    .where(and(eq(people.id, id), visibleTo(PEOPLE_SCOPE, scope)))
+    // Both predicates again, on the statement itself: the row could have been
+    // flipped `household` -> `private` between the check above and here.
+    .where(and(eq(people.id, id), visibleTo(PEOPLE_SCOPE, scope), deletableBy(PEOPLE_SCOPE, scope)))
     .returning();
   return row ?? null;
 }
