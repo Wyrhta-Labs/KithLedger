@@ -13,6 +13,9 @@ import {
   type Role,
 } from '@wyrhta/core/identity';
 import { createAuthGuards, type Principal } from '@wyrhta/core/auth';
+import type { MiddlewareHandler } from 'hono';
+import { JwksClient } from './satellite/jwks.js';
+import { withSatelliteAuth } from './satellite/auth.js';
 import { db } from './db/index.js';
 import { config } from './config/env.js';
 
@@ -63,11 +66,45 @@ export const identity = {
 };
 
 /** Core auth guards, wired to the same secret + key-resolution bridge. */
-export const { requireAuth, requireJwt, requireRole } = createAuthGuards({
+const guards = createAuthGuards({
   jwtSecret: config.jwtSecret,
   keyPrefix: API_KEY_PREFIX,
   resolveApiKey,
 });
+
+export const { requireJwt, requireRole } = guards;
+
+/**
+ * The JWKS client for Heorth's satellite keys, or `null` when the
+ * `HEORTH_JWKS_URL` / `SATELLITE_AUDIENCE` group is absent (the default).
+ * Exported so tests and operators can inspect the cache; it holds PUBLIC keys
+ * only.
+ */
+export const satelliteJwks = config.satelliteAuth
+  ? new JwksClient({ url: config.satelliteAuth.jwksUrl })
+  : null;
+
+/**
+ * The single auth entry point every route uses.
+ *
+ * With the satellite group configured, a Bearer JWT signed with an ASYMMETRIC
+ * algorithm — the only kind Heorth mints (ADR 0009) — is verified against
+ * Heorth's published public keys; `kl_` API keys and the local HS256 admin
+ * token take the existing core path untouched. Unconfigured, this IS the
+ * existing core path: `withSatelliteAuth` is never applied.
+ *
+ * KithLedger holds no key that could sign a satellite token, here or
+ * anywhere: `config.jwtSecret` is HS256 and only ever verifies/mints the local
+ * admin token, and the satellite side has public key material exclusively.
+ */
+export const requireAuth: MiddlewareHandler =
+  config.satelliteAuth && satelliteJwks
+    ? withSatelliteAuth(guards.requireAuth, {
+        config: config.satelliteAuth,
+        jwks: satelliteJwks,
+        keyPrefix: API_KEY_PREFIX,
+      })
+    : guards.requireAuth;
 
 /** Idempotently seed the single admin user from ADMIN_PASSWORD (first boot). */
 export async function seedAdmin(): Promise<void> {

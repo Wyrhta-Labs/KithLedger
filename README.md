@@ -52,6 +52,37 @@ curl -X POST http://localhost:4002/api/v1/auth/keys \
 
 Use `Authorization: Bearer kl_...` or `Authorization: Bearer <jwt>` on all protected routes.
 
+### Heorth-issued member tokens (optional)
+
+Heorth is the household's identity provider. It signs short-lived
+(5-minute), audience-bound **member tokens** with an asymmetric key and
+publishes the public half at `GET /.well-known/jwks.json`; KithLedger
+**verifies** them and holds no signing key for this — it is structurally unable
+to mint one (ADR 0002 phase B, ADR 0009).
+
+Configuration is optional **as a group**. Absent (the default), KithLedger
+behaves exactly as before and satellite tokens are simply not accepted:
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `HEORTH_JWKS_URL` | with `SATELLITE_AUDIENCE` | Heorth's public key set, e.g. `http://heorth:4000/.well-known/jwks.json` |
+| `SATELLITE_AUDIENCE` | with `HEORTH_JWKS_URL` | This service's own audience name — the only `aud` accepted (e.g. `kithledger`) |
+| `HEORTH_ISSUER` | no | Expected `iss`; defaults to `heorth`. Setting it without the group is a startup error |
+
+A `Bearer` JWT signed with an asymmetric algorithm is dispatched to this path;
+`kl_` API keys and the local admin JWT (HS256) keep their existing path
+untouched. Verification enforces the signature, `iss`, `aud` and `exp` with a
+**60 second clock-skew leeway** (ADR 0009 open question 3).
+
+**Key rotation and outages.** The public keys are cached in memory. A `kid`
+already cached never causes a fetch, so a Heorth outage does not break
+verification — cached keys keep working, and a failed refresh never clears
+them. An **unknown** `kid` (i.e. Heorth rotated a key, per its README's
+rotation procedure) triggers a refresh, rate-limited to **one attempt per
+minute** counted from the last attempt, failures included. That bound is what
+makes a stream of forged `kid`s cost nothing: an attacker gets one Heorth round
+trip per minute regardless of request rate, and every such token is rejected.
+
 ---
 
 ## MCP Server

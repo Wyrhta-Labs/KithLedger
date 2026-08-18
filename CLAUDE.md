@@ -55,6 +55,7 @@ src/
 │   ├── index.ts       # Drizzle client singleton
 │   ├── schema/        # domain tables + re-export of core users/api_keys
 │   └── migrations/    # Generated SQL migration files
+├── satellite/         # JWKS client + verification of Heorth-issued member tokens
 ├── routes/            # HTTP method + path only — no business logic
 ├── services/          # All business logic + Drizzle queries
 ├── validators/        # Zod input schemas (also reused as MCP tool inputSchemas)
@@ -79,6 +80,7 @@ Built output is served as static files from `web/dist/` by the Hono API in produ
 - **Relationships:** One row with `is_mutual = true` represents a bidirectional link. Graph queries union `from_person_id = X` with `to_person_id = X WHERE is_mutual = true`.
 - **Migrations at startup:** `migrate()` runs programmatically in `src/index.ts` before `serve()`.
 - **Shared foundation:** the response envelope, pagination, request-id / security-headers / rate-limit / error-handler middleware, structured logger, crypto/api-key, and identity (users + api_keys, JWT, guards) come from `@wyrhta/core` (git-tag dependency). KithLedger is a single-user deployment: one `admin` user is seeded from `ADMIN_PASSWORD` at first boot; `POST /auth/token` authenticates that user and returns a core-issued JWT.
+- **Satellite identity (verify-only):** with `HEORTH_JWKS_URL` + `SATELLITE_AUDIENCE` set (optional as a group), a `Bearer` JWT signed with an **asymmetric** algorithm is verified against Heorth's published JWKS (`src/satellite/`) and resolves to a `Principal`; `kl_` keys and the local HS256 admin JWT keep their existing path. KithLedger **verifies and never mints** — it holds no signing key for this, by design (ADR 0009). Keys are cached; an unknown `kid` refreshes at most once a minute, and a failed refresh never clears the cache, so a Heorth outage does not break verification. `src/satellite/auth.ts` marks the seam where B4's just-in-time member provisioning plugs in (`SatellitePrincipalResolver`).
 - **MCP surface:** `src/mcp/` assembles the `kith.*` tool registry via core's `createMcpServer`; tools call the service layer directly and share REST's auth and audit trail. The MCP server reads a `kl_` API key from the `KITHLEDGER_MCP_API_KEY` environment variable (create one via `POST /api/v1/auth/keys`, JWT-authenticated) — a valid key resolves to the admin user, and a missing/invalid/non-`kl_` value is rejected on the first tool call. Run with `npm run mcp`.
 
 ## Adding a New Resource

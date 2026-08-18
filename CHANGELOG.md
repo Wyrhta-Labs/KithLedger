@@ -5,6 +5,40 @@ All notable changes to KithLedger will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Satellite identity — verifying Heorth-issued member tokens** (task B1d of
+  Wyrhta-Labs/wyrhta-labs#1, ADR 0002 phase B / ADR 0009). Heorth signs
+  short-lived, audience-bound member tokens with an asymmetric key and
+  publishes the public half at `/.well-known/jwks.json`; KithLedger fetches
+  that document, caches the keys and verifies. It holds **no signing key** for
+  this and cannot mint one — the point of the asymmetric choice, and asserted
+  by tests.
+  - New optional-as-a-group configuration: `HEORTH_JWKS_URL` +
+    `SATELLITE_AUDIENCE`, with `HEORTH_ISSUER` defaulting to `heorth`. Absent
+    (the default) leaves behaviour byte-for-byte as before; partial presence is
+    a startup error.
+  - `src/satellite/jwks.ts` — timeout-guarded, injectable-fetch JWKS client.
+    Cached keys survive a Heorth outage (a failed refresh never clears them,
+    and a known `kid` never fetches); an unknown `kid` refreshes at most once
+    per minute, counted from the last *attempt*, so forged `kid`s cannot be
+    amplified into Heorth round trips. Concurrent misses share one request.
+    Entries carrying a private component are refused by core's `loadPublicKey`.
+  - `src/satellite/auth.ts` — decorates the existing `requireAuth` rather than
+    adding a parallel auth path: only a `Bearer` JWT signed with an asymmetric
+    algorithm takes the satellite branch, verified by core's `createAuthGuards`
+    with the fetched keys, the expected `iss`/`aud` and `leewaySeconds: 60`
+    (ADR 0009 open question 3). `SatellitePrincipalResolver` is the documented
+    seam for B4's just-in-time member provisioning.
+
+### Changed
+
+- `@wyrhta/core` bumped from `v0.1.3` to `v0.2.0` (asymmetric keys, JWKS
+  helpers, issuer/audience convention, clock-skew leeway). Non-breaking: the
+  pre-existing suite passes unchanged (16 files / 88 tests) before and after.
+
 ## [0.3.0] - 2026-08-05
 
 ### Added
