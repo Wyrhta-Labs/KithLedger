@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibilityFields } from './visibility.js';
 
 const INTERACTION_TYPES = ['meeting', 'call', 'message', 'email', 'other'] as const;
 const CHANNELS = ['in-person', 'phone', 'sms', 'email', 'video', 'social'] as const;
@@ -11,6 +12,7 @@ export const createInteractionSchema = z.object({
   channel: z.enum(CHANNELS).optional().nullable(),
   notes: z.string().optional().nullable(),
   sentiment: z.enum(SENTIMENTS).optional().nullable(),
+  ...visibilityFields,
 });
 
 export const updateInteractionSchema = createInteractionSchema.partial().omit({ personId: true });

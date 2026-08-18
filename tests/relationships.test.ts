@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createApp } from '../src/app.js';
-import { config } from '../src/config/env.js';
-import { sign } from 'hono/jwt';
-
-async function getJwt() {
-  const now = Math.floor(Date.now() / 1000);
-  return sign({ sub: 'admin', iat: now, exp: now + 3600 }, config.jwtSecret);
-}
-
-async function authHeaders() {
-  return { Authorization: `Bearer ${await getJwt()}`, 'Content-Type': 'application/json' };
-}
+import { authHeaders } from './helpers.js';
 
 async function createPerson(app: ReturnType<typeof createApp>, headers: Record<string, string>, name: string) {
   const res = await app.request('/api/v1/people', {

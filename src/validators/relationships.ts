@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibilityFields } from './visibility.js';
 
 const RELATIONSHIP_TYPES = ['friend', 'family', 'colleague', 'acquaintance', 'other'] as const;
 
@@ -9,6 +10,7 @@ export const createRelationshipSchema = z.object({
   label: z.string().optional().nullable(),
   isMutual: z.boolean().optional().default(true),
   notes: z.string().optional().nullable(),
+  ...visibilityFields,
 }).refine((data) => data.fromPersonId !== data.toPersonId, {
   message: 'fromPersonId and toPersonId must be different',
   path: ['toPersonId'],
@@ -19,6 +21,7 @@ export const updateRelationshipSchema = z.object({
   label: z.string().optional().nullable(),
   isMutual: z.boolean().optional(),
   notes: z.string().optional().nullable(),
+  ...visibilityFields,
 });
 
 export const listRelationshipsQuerySchema = z.object({

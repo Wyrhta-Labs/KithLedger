@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../src/db/index.js';
 import {
   users,
@@ -42,8 +42,14 @@ async function makeUser() {
   return row!;
 }
 
+/**
+ * B6 made `owner_id` NOT NULL, so every fixture row needs an owner. The
+ * default creates a throwaway one rather than leaving the column out, which
+ * the database now (correctly) refuses.
+ */
 async function makePerson(ownerId?: string) {
-  const [row] = await db.insert(people).values({ name: 'Ada', ownerId }).returning();
+  const owner = ownerId ?? (await makeUser()).id;
+  const [row] = await db.insert(people).values({ name: 'Ada', ownerId: owner }).returning();
   return row!;
 }
 
@@ -56,19 +62,20 @@ async function makePerson(ownerId?: string) {
  */
 async function insertEach(visibility?: string) {
   const v = visibility as Visibility | undefined;
-  const [from] = await db.insert(people).values({ name: 'Ada', visibility: v }).returning();
-  const [to] = await db.insert(people).values({ name: 'Grace', visibility: v }).returning();
+  const ownerId = (await makeUser()).id;
+  const [from] = await db.insert(people).values({ name: 'Ada', visibility: v, ownerId }).returning();
+  const [to] = await db.insert(people).values({ name: 'Grace', visibility: v, ownerId }).returning();
   const [interaction] = await db
     .insert(interactions)
-    .values({ personId: from!.id, occurredAt: new Date(), type: 'call', visibility: v })
+    .values({ personId: from!.id, occurredAt: new Date(), type: 'call', visibility: v, ownerId })
     .returning();
   const [relationship] = await db
     .insert(relationships)
-    .values({ fromPersonId: from!.id, toPersonId: to!.id, type: 'friend', visibility: v })
+    .values({ fromPersonId: from!.id, toPersonId: to!.id, type: 'friend', visibility: v, ownerId })
     .returning();
   const [reminder] = await db
     .insert(reminders)
-    .values({ personId: from!.id, dueAt: new Date(), title: 'ping', visibility: v })
+    .values({ personId: from!.id, dueAt: new Date(), title: 'ping', visibility: v, ownerId })
     .returning();
   return { person: from!, interaction: interaction!, relationship: relationship!, reminder: reminder! };
 }
@@ -90,7 +97,14 @@ describe('visibility is a 3-state property of every node and every edge', () => 
   // 'public' is the plausible fourth state someone reaches for; the database
   // has to be what says no, on every table independently.
   it.each([
-    ['people', 'people_visibility_check', () => db.insert(people).values({ name: 'x', visibility: 'public' as Visibility })],
+    [
+      'people',
+      'people_visibility_check',
+      async () => {
+        const owner = await makeUser();
+        return db.insert(people).values({ name: 'x', ownerId: owner.id, visibility: 'public' as Visibility });
+      },
+    ],
     [
       'interactions',
       'interactions_visibility_check',
@@ -98,7 +112,7 @@ describe('visibility is a 3-state property of every node and every edge', () => 
         const p = await makePerson();
         return db
           .insert(interactions)
-          .values({ personId: p.id, occurredAt: new Date(), type: 'call', visibility: 'public' as Visibility });
+          .values({ personId: p.id, occurredAt: new Date(), type: 'call', ownerId: p.ownerId, visibility: 'public' as Visibility });
       },
     ],
     [
@@ -109,7 +123,7 @@ describe('visibility is a 3-state property of every node and every edge', () => 
         const b = await makePerson();
         return db
           .insert(relationships)
-          .values({ fromPersonId: a.id, toPersonId: b.id, type: 'friend', visibility: 'public' as Visibility });
+          .values({ fromPersonId: a.id, toPersonId: b.id, ownerId: a.ownerId, type: 'friend', visibility: 'public' as Visibility });
       },
     ],
     [
@@ -119,7 +133,7 @@ describe('visibility is a 3-state property of every node and every edge', () => 
         const p = await makePerson();
         return db
           .insert(reminders)
-          .values({ personId: p.id, dueAt: new Date(), title: 't', visibility: 'public' as Visibility });
+          .values({ personId: p.id, dueAt: new Date(), title: 't', ownerId: p.ownerId, visibility: 'public' as Visibility });
       },
     ],
   ] as const)('rejects a fourth value on %s', async (_table, constraint, insert) => {
@@ -142,7 +156,7 @@ describe('visibility is a 3-state property of every node and every edge', () => 
     const b = await makePerson();
     const [relationship] = await db
       .insert(relationships)
-      .values({ fromPersonId: a.id, toPersonId: b.id, type: 'friend', visibility: 'private' })
+      .values({ fromPersonId: a.id, toPersonId: b.id, ownerId: a.ownerId, type: 'friend', visibility: 'private' })
       .returning();
     expect(a.visibility).toBe('household');
     expect(b.visibility).toBe('household');
@@ -151,6 +165,45 @@ describe('visibility is a 3-state property of every node and every edge', () => 
 });
 
 describe('owner_id', () => {
+  // B6. B5 shipped the column nullable because inserts had no principal to
+  // stamp it from; now they do, so an unowned row — one the scope predicate
+  // could not classify, since `owner_id = :me` on NULL is NULL and not false —
+  // is impossible at the database rather than by service-layer convention.
+  it.each([
+    ['people', () => sql`INSERT INTO "people" ("name") VALUES ('Unowned')`],
+    [
+      'interactions',
+      async () => {
+        const p = await makePerson();
+        return sql`INSERT INTO "interactions" ("person_id", "occurred_at", "type")
+                   VALUES (${p.id}, now(), 'call')`;
+      },
+    ],
+    [
+      'relationships',
+      async () => {
+        const a = await makePerson();
+        const b = await makePerson();
+        return sql`INSERT INTO "relationships" ("from_person_id", "to_person_id", "type")
+                   VALUES (${a.id}, ${b.id}, 'friend')`;
+      },
+    ],
+    [
+      'reminders',
+      async () => {
+        const p = await makePerson();
+        return sql`INSERT INTO "reminders" ("person_id", "due_at", "title")
+                   VALUES (${p.id}, now(), 't')`;
+      },
+    ],
+  ] as const)('refuses an ownerless row on %s (B6 SET NOT NULL)', async (_table, statement) => {
+    // Raw SQL on purpose: Drizzle's insert type now REQUIRES `ownerId`, so the
+    // TypeScript layer already refuses this. What has to be proven is that the
+    // database refuses it too — an MCP tool, a migration or a psql session
+    // walks straight past the type.
+    await expect(db.execute(await statement())).rejects.toThrow(/owner_id/);
+  });
+
   it('rejects an owner that is not a user', async () => {
     await expect(db.insert(people).values({ name: 'Nobody', ownerId: randomUUID() })).rejects.toThrow(
       /people_owner_id_users_id_fk/,

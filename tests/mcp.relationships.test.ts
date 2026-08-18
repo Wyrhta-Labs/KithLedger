@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { McpToolContext, McpTool } from '@wyrhta/core/mcp';
 import { relationshipTools } from '../src/mcp/tools/relationships.js';
 import { peopleTools } from '../src/mcp/tools/people.js';
+import { LOCAL_ADMIN_ID, ensureLocalAdmin } from './helpers.js';
 
-const ctx: McpToolContext = { principal: { userId: 'admin', role: 'admin' }, requestId: 'test' };
+const ctx: McpToolContext = { principal: { userId: LOCAL_ADMIN_ID, role: 'admin' }, requestId: 'test' };
+
+// `setup.ts` truncates `users` between tests and every insert now stamps
+// `owner_id` (FK -> users.id), so the calling principal has to be a real row.
+beforeEach(async () => { await ensureLocalAdmin(); });
 
 const tool = (list: McpTool[], name: string): McpTool => {
   const t = list.find((x) => x.name === name);

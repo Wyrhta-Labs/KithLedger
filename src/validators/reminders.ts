@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibilityFields } from './visibility.js';
 
 const REMINDER_STATUSES = ['pending', 'done', 'snoozed', 'dismissed'] as const;
 
@@ -13,6 +14,7 @@ export const createReminderSchema = z.object({
   kind: z.enum(REMINDER_KINDS).optional().default('generic'),
   /** Days before the birthday; only meaningful when kind='birthday'. */
   leadDays: z.number().int().min(0).max(365).optional().nullable(),
+  ...visibilityFields,
 });
 
 /**

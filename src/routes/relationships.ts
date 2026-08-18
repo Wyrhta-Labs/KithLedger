@@ -1,11 +1,25 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { requireAuth } from '../identity.js';
 import * as service from '../services/relationships.js';
+import { scopeFor, NOT_OWNER } from '../services/scope.js';
 import { createRelationshipSchema, updateRelationshipSchema, listRelationshipsQuerySchema, graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
 import { validationError } from '../lib/validation.js';
 
 export const relationshipsRouter = new Hono();
+
+/**
+ * ADR 0004 §2 — every handler resolves the caller to a visibility scope and
+ * hands it to the service. The route still knows nothing about Drizzle: the
+ * scope is an opaque value produced from the principal `requireAuth` already
+ * set, and every filtering decision happens in `src/services/`.
+ */
+function scope(c: Context) {
+  const principal = c.get('principal');
+  if (!principal) throw new Error('UNAUTHENTICATED');
+  return scopeFor(principal);
+}
 
 relationshipsRouter.use('*', requireAuth);
 
@@ -13,7 +27,7 @@ relationshipsRouter.get('/', async (c) => {
   const query = listRelationshipsQuerySchema.safeParse(c.req.query());
   if (!query.success) return validationError(c, query.error, 'query parameters');
 
-  const { rows, total, limit, offset } = await service.listRelationships(query.data);
+  const { rows, total, limit, offset } = await service.listRelationships(scope(c), query.data);
   return ok(c, rows, { total, limit, offset });
 });
 
@@ -22,7 +36,7 @@ relationshipsRouter.post('/', async (c) => {
   if (!body.success) return validationError(c, body.error);
 
   try {
-    const relationship = await service.createRelationship(body.data);
+    const relationship = await service.createRelationship(scope(c), body.data);
     return ok(c, relationship, undefined, 201);
   } catch (e: unknown) {
     if (e instanceof Error) {
@@ -38,7 +52,7 @@ relationshipsRouter.post('/', async (c) => {
 });
 
 relationshipsRouter.get('/:id', async (c) => {
-  const relationship = await service.getRelationship(c.req.param('id'));
+  const relationship = await service.getRelationship(scope(c), c.req.param('id'));
   if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
   return ok(c, relationship);
 });
@@ -47,13 +61,25 @@ relationshipsRouter.patch('/:id', async (c) => {
   const body = updateRelationshipSchema.safeParse(await c.req.json());
   if (!body.success) return validationError(c, body.error);
 
-  const relationship = await service.updateRelationship(c.req.param('id'), body.data);
-  if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
-  return ok(c, relationship);
+  // ADR 0004 §4 — only the owner may change `visibility` or the share set.
+  // 403 and not 404 here on purpose: the item is already visible to this
+  // caller, so refusing the write discloses nothing they did not know. The
+  // "invisible = nonexistent" 404 rule applies to items OUTSIDE the scope, and
+  // those never reach this line — the service returns null and we 404 above.
+  try {
+    const relationship = await service.updateRelationship(scope(c), c.req.param('id'), body.data);
+    if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
+    return ok(c, relationship);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === NOT_OWNER) {
+      return err(c, 'FORBIDDEN', 'Only the owner may change visibility or sharing', 403);
+    }
+    throw e;
+  }
 });
 
 relationshipsRouter.delete('/:id', async (c) => {
-  const relationship = await service.deleteRelationship(c.req.param('id'));
+  const relationship = await service.deleteRelationship(scope(c), c.req.param('id'));
   if (!relationship) return err(c, 'NOT_FOUND', 'Relationship not found', 404);
   return ok(c, { id: relationship.id });
 });

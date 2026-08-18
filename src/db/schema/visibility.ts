@@ -52,16 +52,18 @@ export const visibilityCheck = (tableName: string, column: AnyPgColumn) =>
  * RESTRICT makes `DELETE FROM users` fail loudly until B9's offboarding has
  * emptied the member's owned set — the deletion cannot outrun the decision.
  *
- * NULLABLE, for now, and only for now. Populating this on insert requires the
- * calling principal, and threading principals into the service layer is task
- * B6 — this task lands the model inert (ADR 0004: "schema-present but
- * inert"). A NOT NULL column here today would break every existing write path
- * or force a fabricated owner (e.g. "everything is the admin's"), which would
- * mislabel member-authored rows the moment members can write. B6 sets
- * `owner_id` from the principal on every insert and ships the `SET NOT NULL`
- * once the write path guarantees it. Rows that pre-date this migration are
- * backfilled (see `0004_*.sql`), so the only NULLs possible are ones created
- * in the B5..B6 window.
+ * NOT NULL as of B6. B5 shipped it nullable on purpose — stamping an owner on
+ * insert needs the calling principal, and threading principals through the
+ * service layer was B6's job, so a NOT NULL then would have broken every write
+ * path or forced a fabricated owner that mislabels member-authored rows. Now
+ * that every insert sets `owner_id` from the principal, the column is
+ * constrained: an unowned row is one the scope predicate cannot classify
+ * (`owner_id = :me` is NULL, not false, and it would be visible only while
+ * `household`), so "every row has an owner" has to be a database invariant
+ * rather than a convention four services agree to keep. Pre-existing rows were
+ * backfilled by `0004_*.sql`; the `SET NOT NULL` migration re-runs the same
+ * deterministic backfill first, so any row created in the B5..B6 window is
+ * carried over rather than blocking the upgrade.
  */
 export const ownerIdColumn = () =>
-  uuid('owner_id').references(() => users.id, { onDelete: 'restrict' });
+  uuid('owner_id').notNull().references(() => users.id, { onDelete: 'restrict' });

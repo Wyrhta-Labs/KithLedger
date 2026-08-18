@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { visibilityFields } from './visibility.js';
 
 export const createPersonSchema = z.object({
   name: z.string().min(1),
@@ -34,6 +35,7 @@ export const createPersonSchema = z.object({
     )
     .optional()
     .nullable(),
+  ...visibilityFields,
 });
 
 export const updatePersonSchema = createPersonSchema.partial();

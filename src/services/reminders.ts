@@ -1,7 +1,18 @@
 import { db } from '../db/index.js';
-import { reminders, people } from '../db/schema/index.js';
+import { reminders, people, reminderShares } from '../db/schema/index.js';
 import { eq, and, lte, inArray, sql } from 'drizzle-orm';
 import type { CreateReminderInput, UpdateReminderInput, ListRemindersQuery } from '../validators/reminders.js';
+import { personVisible } from './people.js';
+import {
+  REMINDERS_SCOPE,
+  REMINDER_SHARE_TARGET,
+  NOT_OWNER,
+  ownerFor,
+  ownsRow,
+  replaceShareSet,
+  visibleTo,
+  type Scope,
+} from './scope.js';
 
 /** Parse an ISO 8601 duration like P3M and add it to a date */
 function addDuration(date: Date, duration: string): Date {
@@ -58,8 +69,8 @@ export function nextBirthdayDueAt(currentDueAt: Date, birthday: string, leadDays
   return new Date(nextBirthday - leadDays * MS_PER_DAY);
 }
 
-export async function listReminders(query: ListRemindersQuery) {
-  const conditions = [];
+export async function listReminders(scope: Scope, query: ListRemindersQuery) {
+  const conditions = [visibleTo(REMINDERS_SCOPE, scope)];
 
   if (query.person_id) conditions.push(eq(reminders.personId, query.person_id));
   if (query.statuses?.length) conditions.push(inArray(reminders.status, query.statuses));
@@ -78,7 +89,7 @@ export async function listReminders(query: ListRemindersQuery) {
   const limit = Math.min(100, Math.max(1, query.limit ?? 20));
   const offset = Math.max(0, query.offset ?? 0);
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const rows = await db.select().from(reminders)
     .where(where)
@@ -86,6 +97,7 @@ export async function listReminders(query: ListRemindersQuery) {
     .limit(limit)
     .offset(offset);
 
+  // Same `where` as the rows: ADR 0004 §3.4.
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(reminders)
@@ -94,59 +106,105 @@ export async function listReminders(query: ListRemindersQuery) {
   return { rows, total: count, limit, offset };
 }
 
-export async function getReminder(id: string) {
-  const [row] = await db.select().from(reminders).where(eq(reminders.id, id)).limit(1);
+export async function getReminder(scope: Scope, id: string) {
+  const [row] = await db
+    .select()
+    .from(reminders)
+    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
+    .limit(1);
   return row ?? null;
 }
 
-export async function createReminder(input: CreateReminderInput) {
-  const [person] = await db.select().from(people).where(eq(people.id, input.personId)).limit(1);
-  if (!person) throw new Error('PERSON_NOT_FOUND');
+export async function createReminder(scope: Scope, input: CreateReminderInput) {
+  const ownerId = ownerFor(scope);
 
-  const [row] = await db
-    .insert(reminders)
-    .values({
-      personId: input.personId,
-      dueAt: new Date(input.dueAt),
-      title: input.title,
-      notes: input.notes ?? null,
-      recurrence: input.recurrence ?? null,
-      // Must be inserted explicitly: this is an explicit column list, so
-      // omitting kind would silently fall back to the 'generic' column default
-      // and every birthday reminder would be unrecognisable to the widget.
-      kind: input.kind,
-      leadDays: input.leadDays ?? null,
-    })
-    .returning();
-  return row!;
+  // ADR 0004 §3.1 — the pre-check is SCOPED, so a person outside the caller's
+  // scope 404s exactly like a person who does not exist. An unscoped probe
+  // would make this endpoint an existence oracle.
+  if (!(await personVisible(scope, input.personId))) throw new Error('PERSON_NOT_FOUND');
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(reminders)
+      .values({
+        personId: input.personId,
+        dueAt: new Date(input.dueAt),
+        title: input.title,
+        notes: input.notes ?? null,
+        recurrence: input.recurrence ?? null,
+        // Must be inserted explicitly: this is an explicit column list, so
+        // omitting kind would silently fall back to the 'generic' column default
+        // and every birthday reminder would be unrecognisable to the widget.
+        kind: input.kind,
+        leadDays: input.leadDays ?? null,
+        ownerId,
+        ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      })
+      .returning();
+    if (!row) throw new Error('Failed to create reminder');
+    if (input.sharedWith) {
+      await replaceShareSet(tx, REMINDER_SHARE_TARGET, row.id, input.sharedWith);
+    }
+    return row;
+  });
 }
 
-export async function updateReminder(id: string, input: UpdateReminderInput) {
+export async function updateReminder(scope: Scope, id: string, input: UpdateReminderInput) {
+  ownerFor(scope);
+
+  const current = await getReminder(scope, id);
+  if (!current) return null;
+  // ADR 0004 §4 — owner-only governance; sharing is not transitive.
+  if ((input.visibility !== undefined || input.sharedWith !== undefined)
+      && !ownsRow(scope, current.ownerId)) {
+    throw new Error(NOT_OWNER);
+  }
+
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   if (input.dueAt !== undefined) updates['dueAt'] = new Date(input.dueAt);
   if (input.title !== undefined) updates['title'] = input.title;
   if (input.notes !== undefined) updates['notes'] = input.notes;
   if (input.recurrence !== undefined) updates['recurrence'] = input.recurrence;
+  if (input.visibility !== undefined) updates['visibility'] = input.visibility;
 
-  const [row] = await db.update(reminders).set(updates).where(eq(reminders.id, id)).returning();
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(reminders)
+      .set(updates)
+      .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
+      .returning();
+    if (!row) return null;
+    if (input.sharedWith !== undefined) {
+      await replaceShareSet(tx, REMINDER_SHARE_TARGET, id, input.sharedWith);
+    }
+    return row;
+  });
+}
+
+export async function deleteReminder(scope: Scope, id: string) {
+  ownerFor(scope);
+  const [row] = await db
+    .delete(reminders)
+    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
+    .returning();
   return row ?? null;
 }
 
-export async function deleteReminder(id: string) {
-  const [row] = await db.delete(reminders).where(eq(reminders.id, id)).returning();
-  return row ?? null;
-}
+export async function completeReminder(scope: Scope, id: string) {
+  ownerFor(scope);
 
-export async function completeReminder(id: string) {
-  const [reminder] = await db.select().from(reminders).where(eq(reminders.id, id)).limit(1);
+  // ADR 0004 §3.1 — scoped existence pre-check: completing a reminder you
+  // cannot see is NOT FOUND, not forbidden.
+  const reminder = await getReminder(scope, id);
   if (!reminder) return null;
 
   return db.transaction(async (tx) => {
     const [updated] = await tx
       .update(reminders)
       .set({ status: 'done', updatedAt: new Date() })
-      .where(eq(reminders.id, id))
+      .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
       .returning();
+    if (!updated) return null;
 
     let next = null;
     if (reminder.recurrence) {
@@ -179,29 +237,51 @@ export async function completeReminder(id: string) {
           // 'generic' and the widget stops recognising the birthday.
           kind: reminder.kind,
           leadDays: reminder.leadDays,
+          // The successor is the SAME commitment recurring, so it inherits the
+          // original's owner and visibility rather than silently becoming a
+          // `household` item owned by whoever happened to tick the box. The
+          // share set is carried over for the same reason: a recurrence whose
+          // audience widened or narrowed each cycle would make `shared`
+          // unusable for anything periodic.
+          ownerId: reminder.ownerId,
+          visibility: reminder.visibility,
         })
         .returning();
-      next = newReminder;
+      next = newReminder ?? null;
+      if (newReminder && reminder.visibility === 'shared') {
+        const grants = await tx
+          .select({ memberId: reminderShares.memberId })
+          .from(reminderShares)
+          .where(eq(reminderShares.reminderId, reminder.id));
+        await replaceShareSet(
+          tx,
+          REMINDER_SHARE_TARGET,
+          newReminder.id,
+          grants.map((g) => g.memberId),
+        );
+      }
     }
 
-    return { updated: updated!, next };
+    return { updated, next };
   });
 }
 
-export async function snoozeReminder(id: string, snoozeUntil: string) {
+export async function snoozeReminder(scope: Scope, id: string, snoozeUntil: string) {
+  ownerFor(scope);
   const [row] = await db
     .update(reminders)
     .set({ status: 'snoozed', snoozedUntil: new Date(snoozeUntil), updatedAt: new Date() })
-    .where(eq(reminders.id, id))
+    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
     .returning();
   return row ?? null;
 }
 
-export async function dismissReminder(id: string) {
+export async function dismissReminder(scope: Scope, id: string) {
+  ownerFor(scope);
   const [row] = await db
     .update(reminders)
     .set({ status: 'dismissed', updatedAt: new Date() })
-    .where(eq(reminders.id, id))
+    .where(and(eq(reminders.id, id), visibleTo(REMINDERS_SCOPE, scope)))
     .returning();
   return row ?? null;
 }

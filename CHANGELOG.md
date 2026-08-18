@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-member visibility, enforced** (task B6 of Wyrhta-Labs/wyrhta-labs#1,
+  ADR 0004 §2 + §4). B5's columns stop being inert: every list, get, count,
+  search total and write in `src/services/` now runs against the caller's
+  scope, and migration `0005` makes `owner_id` NOT NULL now that every insert
+  stamps it.
+  - **One predicate, one place.** `src/services/scope.ts` owns
+    `visibility = 'household' OR owner_id = :me OR (visibility = 'shared' AND
+    EXISTS <share>)` and emits it for any table and any alias. Hand-writing it
+    at each of the ~27 Drizzle call sites would have been 27 chances to drop
+    the `visibility = 'shared'` guard, and dropping that guard leaves every
+    item you were ever shared *permanently* readable after a `shared` ->
+    `private` flip, because B5 deliberately does not delete grants on the flip.
+    A test asserts exactly that: the grant row survives, the item does not.
+  - **Counts use the same `where` as their rows** (§3.4). A total of 5 when you
+    can see 3 leaks as much as showing the hidden 2.
+  - **Invisible = nonexistent** (§3.1). Out-of-scope items 404 `NOT_FOUND`,
+    never 403 — a 403 confirms the item exists. This covers `getX` and every
+    existence pre-check: `createInteraction`, `createReminder`,
+    `createRelationship` (both endpoints) and `completeReminder` probe through
+    the SCOPED `personVisible`, so they cannot be used as existence oracles.
+  - **Owner-only governance; sharing is not transitive** (§4). `visibility` and
+    the share set are changeable only by `owner_id = principal.userId` — a
+    member an item was shared *to* can read it but may not re-share it. Both
+    arrive as ordinary fields on create/PATCH (`visibility`, `sharedWith`,
+    the latter a full replace, so `[]` revokes); a non-owner attempting either
+    gets 403, which discloses nothing since the item is already visible to
+    them. **Content edits deliberately follow read scope**: `household` is the
+    default state, and owner-only content editing would make the household's
+    own data read-only for everyone but whoever typed it first.
+  - **No standing god-mode** (§4). `role === 'admin'` is never consulted; there
+    is no bypass flag to consult. The local admin sees items as an owner, like
+    anyone else, and a test asserts the admin cannot see or re-govern another
+    member's `private` item.
+  - **The household service principal is a SCOPE, not a bypass** (§2.2).
+    `HOUSEHOLD_SCOPE` resolves to `visibility = 'household'` only and consults
+    no share table at all; it has no member id, so writes are refused
+    structurally rather than by a policy check. B8 gives it its own credential;
+    B6 only makes the scope expressible.
+  - **Recurring reminders inherit their predecessor's owner, visibility and
+    share set**, so a private monthly reminder does not quietly become a
+    `household` one owned by whoever ticked it off.
+  - `getPersonGraph` is untouched: ADR 0004 §3's traversal rules are task B7,
+    which must apply `visibleTo(..., alias)` — the same fragment, aliasable for
+    its recursive CTE — at every hop.
+  - The MCP tools stop discarding their context and resolve a member scope from
+    the principal. That is the minimum: the surface is deleted in task A8.
+  - Suite: 22 files / 172 tests -> 23 files / 196 tests, all passing.
+
 - **Per-member visibility, schema only** (task B5 of Wyrhta-Labs/wyrhta-labs#1,
   ADR 0004 §1 + §4). Migration `0004` lands the access-control data model with
   enforcement deliberately **inert**: nothing filters yet, no principal is
