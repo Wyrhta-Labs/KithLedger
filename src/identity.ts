@@ -13,9 +13,12 @@ import {
   type Role,
 } from '@wyrhta/core/identity';
 import { createAuthGuards, type Principal } from '@wyrhta/core/auth';
+import { err } from '@wyrhta/core/http';
+import { logEvent } from '@wyrhta/core/lib';
 import type { MiddlewareHandler } from 'hono';
 import { JwksClient } from './satellite/jwks.js';
-import { withSatelliteAuth } from './satellite/auth.js';
+import { withSatelliteAuth, type SatellitePrincipalResolver } from './satellite/auth.js';
+import { asHouseholdRole, isHouseholdMember, provisionMember } from './services/members.js';
 import { db } from './db/index.js';
 import { config } from './config/env.js';
 
@@ -85,6 +88,40 @@ export const satelliteJwks = config.satelliteAuth
   : null;
 
 /**
+ * B1d's seam, filled in by B4: turn a fully verified Heorth member token into
+ * a LOCAL principal, provisioning the member's record on first sight.
+ *
+ * The `sub` becomes the local `users.id` — see `src/services/members.ts` for
+ * why that table and not a separate one. Two things are deliberately refused
+ * rather than accommodated, both by returning `null` (a 401 from the caller):
+ *
+ *  - a `role` claim this deployment's enum does not know. The role travels
+ *    from the token and is never elevated (ADR 0009); defaulting an unknown
+ *    one would be KithLedger inventing an authorization decision Heorth did
+ *    not make.
+ *  - a `sub` that is not a uuid, or one colliding with a locally authored
+ *    account.
+ */
+export const satellitePrincipalResolver: SatellitePrincipalResolver = async (
+  principal,
+  claims,
+) => {
+  const role = asHouseholdRole(principal.role);
+  if (!role) {
+    logEvent({
+      event: 'satellite.member.rejected',
+      user_id: claims.sub,
+      success: false,
+      reason: 'unknown_role',
+    });
+    return null;
+  }
+  const userId = await provisionMember(claims.sub, role);
+  if (!userId) return null;
+  return { type: principal.type, userId, role };
+};
+
+/**
  * The single auth entry point every route uses.
  *
  * With the satellite group configured, a Bearer JWT signed with an ASYMMETRIC
@@ -103,8 +140,37 @@ export const requireAuth: MiddlewareHandler =
         config: config.satelliteAuth,
         jwks: satelliteJwks,
         keyPrefix: API_KEY_PREFIX,
+        resolvePrincipal: satellitePrincipalResolver,
       })
     : guards.requireAuth;
+
+/**
+ * Refuse a caller whose account was authored by Heorth (B4).
+ *
+ * Guards the `kl_` key-management routes. A Heorth-authored member already
+ * cannot reach them — `requireJwt` verifies against the local HS256 secret and
+ * a Heorth token is asymmetric — so this is belt AND braces, and it is the
+ * braces on purpose: `kl_` keys are long-lived local credentials, and the
+ * whole point of ADR 0009's 5-minute audience-bound token is that a satellite
+ * member's access expires. Letting a member trade one for a key that does not
+ * would hand back exactly what the short TTL was for, and would leave a
+ * credential behind after Heorth offboards them.
+ */
+export const requireLocalAccount: MiddlewareHandler = async (c, next) => {
+  const principal = c.get('principal');
+  if (!principal) return err(c, 'UNAUTHORIZED', 'Authentication required', 401);
+  if (await isHouseholdMember(principal.userId)) {
+    logEvent({
+      event: 'auth.key.forbidden',
+      user_id: principal.userId,
+      success: false,
+      reason: 'household_member',
+      request_id: c.get('requestId'),
+    });
+    return err(c, 'FORBIDDEN', 'API keys are managed by local accounts only', 403);
+  }
+  return next();
+};
 
 /** Idempotently seed the single admin user from ADMIN_PASSWORD (first boot). */
 export async function seedAdmin(): Promise<void> {

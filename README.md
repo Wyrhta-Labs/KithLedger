@@ -83,6 +83,35 @@ minute** counted from the last attempt, failures included. That bound is what
 makes a stream of forged `kid`s cost nothing: an attacker gets one Heorth round
 trip per minute regardless of request rate, and every such token is rejected.
 
+### Household members are provisioned just in time
+
+Members are authored in **exactly one place: Heorth**. KithLedger never holds a
+roster and never syncs one — that coupling is what ADR 0007 cited when it
+deleted Feoh. Instead, the first request carrying a validly signed token for a
+`sub` this service has not seen creates the member's local record then and
+there. There is no provisioning endpoint and no staleness window, and
+consequently **no route to create a household member**: Heorth creates them,
+and the seeded admin covers local operation.
+
+The local record is a row in the shared `users` table whose **id is Heorth's
+`sub`**, so one `users.id` identifies both members and the local admin (which
+is what ADR 0004's forthcoming owner columns need). A companion
+`household_members` row records that the account was authored by Heorth. Two
+consequences worth stating plainly:
+
+- **A member cannot authenticate locally.** Their stored password hash is not
+  an argon2 hash at all, so no password verifies against it — structurally, not
+  improbably. Their synthesised address is under the RFC 2606 reserved
+  `.invalid` domain and can never receive mail.
+- **A member cannot hold `kl_` API keys.** Key management requires a local JWT
+  (which Heorth, signing asymmetrically, cannot mint) *and* refuses
+  Heorth-authored callers outright. A `kl_` key is long-lived; handing one to
+  the bearer of a 5-minute token would give back exactly what the short TTL is
+  for, and would outlive Heorth offboarding them.
+
+`/auth/keys` acts on the authenticated caller throughout — creating, listing
+and revoking are scoped to whoever presented the JWT.
+
 ---
 
 ## MCP Server

@@ -33,8 +33,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (ADR 0009 open question 3). `SatellitePrincipalResolver` is the documented
     seam for B4's just-in-time member provisioning.
 
+- **Just-in-time household-member provisioning** (task B4 of
+  Wyrhta-Labs/wyrhta-labs#1, ADR 0002 phase B / ADR 0004 / ADR 0009). A
+  validly signed Heorth member token whose `sub` is unknown creates that
+  member's local record on the first request, through B1d's
+  `SatellitePrincipalResolver` seam. Members stay authored in Heorth alone:
+  no roster, no sync, no provisioning endpoint, no staleness window — the
+  coupling ADR 0007 cited when it deleted Feoh.
+  - **The local record reuses core's `users` table, keyed by Heorth's `sub`**
+    (new migration `0003`, adding only a `household_members` provenance table).
+    The alternative — a separate member table — was rejected because ADR 0004 /
+    task B5's `owner` columns would then have to reference two disjoint identity
+    spaces, which a Postgres foreign key cannot do; B5 would need either an
+    un-foreign-keyed `owner` or a polymorphic `(owner_kind, owner_id)` pair in
+    every traversal query. With one table it is `references(users.id)`, covering
+    members and the local admin alike, and `principal.userId` stays a `users.id`
+    everywhere.
+  - **A provisioned member can never authenticate locally.** The stored
+    `password_hash` is a non-argon2 sentinel, so no password verifies against it
+    — structural, not improbable. The synthesised `email`/`handle` are derived
+    from the `sub` alone (RFC 2606 `.invalid` domain, `heorth-` prefixed handle),
+    so they leak nothing and cannot collide. A `users` row with no
+    `household_members` row is a local account and provisioning refuses to
+    claim it.
+  - **A member cannot hold `kl_` API keys.** `requireLocalAccount` refuses
+    Heorth-authored callers on the key routes, on top of those routes already
+    requiring a local HS256 JWT that Heorth cannot mint. A long-lived key would
+    give back exactly what ADR 0009's 5-minute TTL is for.
+  - Role travels from the token and is never elevated; `users.role` is a mirror
+    kept in step with the last token seen. An unknown role, a non-uuid `sub`,
+    and a `sub` colliding with a local account are each refused with a 401.
+  - No user-creation route was added: Heorth authors members and the seeded
+    admin covers local operation, so an endpoint would have no caller.
+
 ### Changed
 
+- **`POST /api/v1/auth/token` authenticates the supplied `email`** instead of
+  hardcoding the admin address. `email` is optional and defaults to the seeded
+  admin, so existing callers — including the web UI's password-only login form
+  — are unchanged.
+- **`/api/v1/auth/keys` (create, list, revoke) acts on the authenticated
+  caller** (`c.get('principal').userId`) instead of always on the admin user.
 - `@wyrhta/core` bumped from `v0.1.3` to `v0.2.0` (asymmetric keys, JWKS
   helpers, issuer/audience convention, clock-skew leeway). Non-breaking: the
   pre-existing suite passes unchanged (16 files / 88 tests) before and after.

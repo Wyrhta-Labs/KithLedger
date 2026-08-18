@@ -3,11 +3,17 @@ import { z } from 'zod';
 import { ok, err, rateLimit } from '@wyrhta/core/http';
 import { validationError } from '../lib/validation.js';
 import { logEvent } from '@wyrhta/core/lib';
-import { identity, requireJwt, getAdminUser, ADMIN_EMAIL } from '../identity.js';
+import { identity, requireJwt, requireLocalAccount, ADMIN_EMAIL } from '../identity.js';
 
 export const authRouter = new Hono();
 
 const tokenSchema = z.object({
+  // Per-user login (B4). Omitted means the local admin — the deployment was
+  // single-user until now and the web UI's login form still posts a password
+  // alone, so keeping the default preserves both. Heorth-authored members can
+  // never authenticate here whatever they supply: their `password_hash` is not
+  // an argon2 hash (see `src/services/members.ts`).
+  email: z.string().email().optional(),
   password: z.string(),
 });
 
@@ -32,7 +38,8 @@ authRouter.post('/token', rateLimit(), async (c) => {
   const ip = getIp(c);
   const requestId = c.get('requestId');
 
-  const user = await identity.authenticate(ADMIN_EMAIL, body.data.password);
+  const email = body.data.email ?? ADMIN_EMAIL;
+  const user = await identity.authenticate(email, body.data.password);
   if (!user) {
     logEvent({ event: 'auth.token.failure', ip, success: false, request_id: requestId });
     return err(c, 'UNAUTHORIZED', 'Invalid password', 401);
@@ -43,9 +50,20 @@ authRouter.post('/token', rateLimit(), async (c) => {
   return ok(c, { token, expires_in: expiresIn });
 });
 
-authRouter.get('/keys', requireJwt, async (c) => {
-  const admin = await getAdminUser();
-  const rows = await identity.listApiKeys(admin.id);
+/**
+ * Key management acts on the AUTHENTICATED CALLER, not on a hardcoded admin
+ * (B4). `requireLocalAccount` additionally refuses Heorth-authored members —
+ * see `src/identity.ts` for why they must not hold long-lived `kl_` keys.
+ */
+function callerId(c: { get: (k: 'principal') => { userId: string } | undefined }): string {
+  const principal = c.get('principal');
+  // Unreachable: `requireJwt` sets the principal or returns 401 itself.
+  if (!principal) throw new Error('No principal on an authenticated route');
+  return principal.userId;
+}
+
+authRouter.get('/keys', requireJwt, requireLocalAccount, async (c) => {
+  const rows = await identity.listApiKeys(callerId(c));
   // Core names the column `prefix`; POST /keys already returns it as
   // `keyPrefix`. Normalize here so both endpoints expose one field name.
   return ok(
@@ -60,14 +78,13 @@ authRouter.get('/keys', requireJwt, async (c) => {
   );
 });
 
-authRouter.post('/keys', requireJwt, async (c) => {
+authRouter.post('/keys', requireJwt, requireLocalAccount, async (c) => {
   const body = createKeySchema.safeParse(await c.req.json());
   if (!body.success) {
     return validationError(c, body.error);
   }
 
-  const admin = await getAdminUser();
-  const key = await identity.createApiKey(admin.id, body.data.name);
+  const key = await identity.createApiKey(callerId(c), body.data.name);
 
   logEvent({ event: 'auth.key.created', key_id: key.id, key_name: key.name, request_id: c.get('requestId') });
 
@@ -79,10 +96,9 @@ authRouter.post('/keys', requireJwt, async (c) => {
   );
 });
 
-authRouter.delete('/keys/:id', requireJwt, async (c) => {
-  const admin = await getAdminUser();
+authRouter.delete('/keys/:id', requireJwt, requireLocalAccount, async (c) => {
   const keyId = c.req.param('id');
-  const revoked = await identity.revokeApiKey(admin.id, keyId);
+  const revoked = await identity.revokeApiKey(callerId(c), keyId);
   if (!revoked) return err(c, 'NOT_FOUND', 'API key not found', 404);
   logEvent({ event: 'auth.key.revoked', key_id: keyId, request_id: c.get('requestId') });
   return ok(c, { id: keyId });
