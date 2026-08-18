@@ -74,7 +74,7 @@ export const peopleTools: McpTool[] = [
       const { id, depth } = z
         .object({ id: z.string().uuid(), depth: z.coerce.number().int().min(1).max(3).optional().default(1) })
         .parse(input);
-      const graph = await getPersonGraph(id, depth);
+      const graph = await getPersonGraph(scope(ctx), id, depth);
       if (!graph) throw new Error('NOT_FOUND');
       return ok(graph);
     },

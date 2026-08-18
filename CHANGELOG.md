@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Graph traversal respects per-member visibility** (task B7 of
+  Wyrhta-Labs/wyrhta-labs#1, ADR 0004 §3 — marked "correctness,
+  non-negotiable"). `getPersonGraph` was the last unscoped read; it now takes a
+  `Scope` and applies B6's `visibleTo(..., alias)` at every hop. A graph leaks
+  in ways a row filter does not: its *shape* — which edges exist, which paths
+  connect, how many neighbours a person has — discloses hidden items even when
+  the hidden rows themselves are withheld.
+  - **Invisible = nonexistent** (§3.1). The root probe goes through the scoped
+    `personVisible`, so an invisible root returns the byte-identical 404 a
+    random uuid gets. A test compares the two response bodies literally.
+  - **Edge visibility requires visible endpoints** (§3.2). An edge is returned
+    only when `visibleTo(relationships)` holds AND both endpoints resolve to a
+    person visible to the caller — two correlated `EXISTS` conjuncts, since
+    `visibleTo` is a per-row rule and the endpoint requirement is not. ADR 0004
+    §1 makes edge visibility independent of endpoints in both directions, so
+    both halves are needed: a private edge between two household people is
+    absent, and a household edge to a private person is absent *entirely* —
+    no dangling edge, and the hidden person's id and name appear nowhere in
+    the response.
+  - **No pass-through** (§3.3), terminated INSIDE the recursion. The same
+    `edgeVisible` fragment sits in the CTE's base term and in its recursive
+    term, so every row that enters `graph` has two visible endpoints and the
+    recursive arm can only pivot on already-visible nodes. `You -> [hidden] ->
+    Cousin` therefore has no second hop to take, while Cousin still appears
+    over an independent visible path — traversal is terminated, not
+    blanket-filtered. Post-filtering the result set would have walked through
+    the hidden node first; `DISTINCT ON (id)` runs on the finished set, so
+    anything applied there is too late by construction. Tested both ways, plus
+    a fixture whose hidden items sit at hop TWO behind a visible first hop —
+    the case only the recursive arm's predicate can suppress.
+  - **Aggregates respect the filter** (§3.4). The response is `{nodes, edges}`
+    with no counts, and the route's `meta` echoes only the caller's own input.
+  - **Nodes and edges are filtered separately**, because they come from
+    separate queries: filtering only nodes leaves edges naming hidden ids,
+    filtering only edges hydrates hidden people's names. The hydration re-
+    applies `visibleTo(people, ...)`.
+  - **Fixed: the depth 2-3 branch returned unusable rows.** The CTE projected
+    `r.*`, i.e. snake_case columns plus an internal `depth`, while the depth-1
+    branch returned Drizzle rows — so node hydration read `rel.fromPersonId`
+    off a row that only had `from_person_id` and collected `undefined`. The
+    CTE now aliases its projection to the Drizzle row shape and drops `depth`,
+    and a test asserts the two branches serialise identically.
+  - Both call sites thread the scope: `GET /api/v1/people/:id/graph` and the
+    `kith.get_person_graph` MCP tool (the minimum — that surface is deleted in
+    task A8).
+  - Suite: 23 files / 196 tests -> 24 files / 206 tests, all passing.
+
 - **Per-member visibility, enforced** (task B6 of Wyrhta-Labs/wyrhta-labs#1,
   ADR 0004 §2 + §4). B5's columns stop being inert: every list, get, count,
   search total and write in `src/services/` now runs against the caller's

@@ -7,6 +7,7 @@ import { remindersRouter } from './reminders.js';
 import { relationshipsRouter } from './relationships.js';
 import * as relationshipService from '../services/relationships.js';
 import { requireAuth } from '../identity.js';
+import { scopeFor } from '../services/scope.js';
 import { graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
 import { validationError } from '../lib/validation.js';
@@ -24,7 +25,16 @@ export function mountRoutes(app: Hono) {
     const query = graphQuerySchema.safeParse(c.req.query());
     if (!query.success) return validationError(c, query.error, 'query parameters');
 
-    const result = await relationshipService.getPersonGraph(c.req.param('id'), query.data.depth);
+    // ADR 0004 §3 — the traversal runs against the CALLER's scope, and an
+    // invisible root is indistinguishable from a non-existent one (§3.1).
+    const principal = c.get('principal');
+    if (!principal) throw new Error('UNAUTHENTICATED');
+
+    const result = await relationshipService.getPersonGraph(
+      scopeFor(principal),
+      c.req.param('id'),
+      query.data.depth,
+    );
     if (!result) return err(c, 'NOT_FOUND', 'Person not found', 404);
 
     return ok(c, result, { root_person_id: c.req.param('id'), depth: query.data.depth });

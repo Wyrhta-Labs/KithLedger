@@ -1,9 +1,10 @@
 import { db } from '../db/index.js';
-import { relationships, people } from '../db/schema/index.js';
-import { eq, or, and, sql, inArray } from 'drizzle-orm';
+import { relationships, people, type Relationship } from '../db/schema/index.js';
+import { eq, or, and, sql, inArray, type SQL } from 'drizzle-orm';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
 import { personVisible } from './people.js';
 import {
+  PEOPLE_SCOPE,
   RELATIONSHIPS_SCOPE,
   RELATIONSHIP_SHARE_TARGET,
   NOT_OWNER,
@@ -141,76 +142,163 @@ export async function deleteRelationship(scope: Scope, id: string) {
 }
 
 /**
- * NOT SCOPED YET — task B7 owns ADR 0004 §3's traversal rules (visible
- * endpoints, no pass-through, scoped aggregates), and deliberately not B6.
- * When B7 lands it must apply `visibleTo(PEOPLE_SCOPE, scope, '<alias>')` and
- * `visibleTo(RELATIONSHIPS_SCOPE, scope, '<alias>')` — the SAME predicate the
- * ordinary queries above use — to the root probe, the depth-1 branch, both
- * arms of the recursive CTE and the final node fetch.
+ * ── THE TRAVERSAL (ADR 0004 §3, task B7) ─────────────────────────────────────
+ *
+ * §3 is marked "correctness, non-negotiable", and a graph leaks in ways a row
+ * filter does not: the *shape* — which edges exist, which paths connect, how
+ * many neighbours a person has — discloses hidden items even when the hidden
+ * rows themselves are withheld. The four rules, and where each one lives:
+ *
+ * §3.1 INVISIBLE = NONEXISTENT. The root probe goes through the SCOPED
+ *      `personVisible`, so an invisible root returns `null` and the route
+ *      renders the same 404 a random uuid gets. There is no 403 anywhere in
+ *      this function — a 403 would confirm the person exists.
+ *
+ * §3.2 EDGE VISIBILITY REQUIRES VISIBLE ENDPOINTS. {@link edgeVisible} is
+ *      `visibleTo(relationships) AND <from is a visible person> AND <to is a
+ *      visible person>`. `visibleTo` gives per-row visibility only; the
+ *      endpoint conjuncts are what stop a dangling edge to a hidden node, and
+ *      they are separate from the edge's own visibility because ADR 0004 §1
+ *      makes an edge's visibility independent of its endpoints in BOTH
+ *      directions.
+ *
+ * §3.3 NO PASS-THROUGH. This is a property of WHERE the predicate sits, not of
+ *      the predicate. `edgeVisible` is applied inside the CTE's base term AND
+ *      inside its recursive term, so every row that ever enters `graph` has
+ *      two visible endpoints. The recursive term pivots only on
+ *      `g.from_person_id` / `g.to_person_id` — i.e. only on nodes that are
+ *      already known-visible — so a hidden person can never become a hop, and
+ *      `You -> [hidden] -> Cousin` simply has no second hop to take. Filtering
+ *      the CTE's OUTPUT instead would traverse through the hidden node first
+ *      and surface Cousin, which is the whole failure mode; note also that
+ *      `DISTINCT ON (id)` runs on the finished result set, so anything applied
+ *      there is too late by construction. Cousin still appears when an
+ *      independent visible path reaches her — traversal is terminated, not
+ *      blanket-filtered.
+ *
+ * §3.4 AGGREGATES RESPECT THE FILTER. The response is `{nodes, edges}` with no
+ *      counts, and the route's `meta` echoes only the caller's own input
+ *      (`root_person_id`, `depth`). Nothing here is a count; if one is ever
+ *      added it must be computed over these arrays, not over the table.
+ *
+ * The node set is filtered SEPARATELY from the edge set, because they come
+ * from separate queries: filtering only nodes leaves edges naming hidden ids,
+ * filtering only edges hydrates hidden people's names. Both happen, and both
+ * use the same {@link visibleTo}.
  */
-export async function getPersonGraph(personId: string, depth: number) {
+
+/**
+ * `<person-id expression> is a person visible to `scope`` (ADR 0004 §3.2).
+ *
+ * A correlated EXISTS rather than a join so it composes into any arm of the
+ * CTE without changing its column list or row multiplicity. The alias `gp` is
+ * local to the subquery and cannot collide with `r` / `r2` / `g` outside it.
+ */
+function endpointVisible(scope: Scope, column: SQL): SQL {
+  return sql`EXISTS (
+    SELECT 1 FROM "people" gp
+    WHERE gp."id" = ${column} AND ${visibleTo(PEOPLE_SCOPE, scope, 'gp')}
+  )`;
+}
+
+/**
+ * The complete rule for "this edge is returned to `scope`" (ADR 0004 §3.2),
+ * rendered against `alias` so the depth-1 branch, the CTE's base term and the
+ * CTE's recursive term apply the IDENTICAL condition. Two implementations of
+ * one security rule is how they drift.
+ */
+function edgeVisible(scope: Scope, alias: string): SQL {
+  const t = sql.raw(`"${alias}"`);
+  return sql`(
+    ${visibleTo(RELATIONSHIPS_SCOPE, scope, alias)}
+    AND ${endpointVisible(scope, sql`${t}."from_person_id"`)}
+    AND ${endpointVisible(scope, sql`${t}."to_person_id"`)}
+  )`;
+}
+
+/** The columns the CTE projects, aliased back to the Drizzle row shape. */
+const GRAPH_EDGE_COLUMNS = sql`
+  id,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt",
+  from_person_id AS "fromPersonId",
+  to_person_id AS "toPersonId",
+  type,
+  label,
+  is_mutual AS "isMutual",
+  notes,
+  owner_id AS "ownerId",
+  visibility
+`;
+
+export async function getPersonGraph(scope: Scope, personId: string, depth: number) {
   // Defense-in-depth: cap beyond the validator's max(3) to prevent runaway CTEs
   const safeDepth = Math.min(depth, 5);
-  // Verify root person exists
-  const [root] = await db.select().from(people).where(eq(people.id, personId)).limit(1);
-  if (!root) return null;
 
-  if (safeDepth === 1) {
-    // Simple join for depth 1
-    const rels = await db.select().from(relationships).where(
-      or(
-        eq(relationships.fromPersonId, personId),
-        and(eq(relationships.toPersonId, personId), eq(relationships.isMutual, true))
-      )!
-    );
+  // ADR 0004 §3.1 — the root probe is SCOPED. An invisible root is reported
+  // exactly as a non-existent one: `null` here, 404 at the route.
+  if (!(await personVisible(scope, personId))) return null;
 
-    const personIds = new Set<string>([personId]);
-    for (const rel of rels) {
-      personIds.add(rel.fromPersonId);
-      personIds.add(rel.toPersonId);
-    }
+  const edges: Relationship[] =
+    safeDepth === 1
+      ? // Depth 1: a single hop, so the whole rule is one `where`.
+        await db
+          .select()
+          .from(relationships)
+          .where(
+            and(
+              or(
+                eq(relationships.fromPersonId, personId),
+                and(eq(relationships.toPersonId, personId), eq(relationships.isMutual, true)),
+              )!,
+              edgeVisible(scope, 'relationships'),
+            ),
+          )
+      : // Depth 2-3: a recursive CTE. `edgeVisible` appears in BOTH arms —
+        // see §3.3 above; that is what terminates pass-through inside the
+        // traversal rather than after it.
+        ((await db.execute(sql`
+          WITH RECURSIVE graph AS (
+            -- Base: visible edges involving the (visible) root person.
+            SELECT r.*, 1 as depth
+            FROM relationships r
+            WHERE (
+                r.from_person_id = ${personId}::uuid
+                OR (r.to_person_id = ${personId}::uuid AND r.is_mutual = true)
+              )
+              AND ${edgeVisible(scope, 'r')}
 
-    const nodes = await db.select({ id: people.id, name: people.name })
-      .from(people)
-      .where(inArray(people.id, Array.from(personIds)));
+            UNION
 
-    return { nodes, edges: rels };
-  }
+            -- Recursive: next-hop neighbours. The CTE holds only edges whose BOTH
+            -- endpoints are visible, so the pivot nodes below are visible by
+            -- construction and no hidden person can be routed through.
+            SELECT r2.*, g.depth + 1
+            FROM relationships r2
+            INNER JOIN graph g ON (
+              r2.from_person_id IN (g.from_person_id, g.to_person_id)
+              OR (r2.to_person_id IN (g.from_person_id, g.to_person_id) AND r2.is_mutual = true)
+            )
+            WHERE g.depth < ${safeDepth}
+              AND ${edgeVisible(scope, 'r2')}
+          )
+          SELECT DISTINCT ON (id) ${GRAPH_EDGE_COLUMNS} FROM graph
+        `)) as unknown as Relationship[]);
 
-  // For depth 2-3, use recursive CTE
-  const result = await db.execute(sql`
-    WITH RECURSIVE graph AS (
-      -- Base: relationships involving root person
-      SELECT r.*, 1 as depth
-      FROM relationships r
-      WHERE r.from_person_id = ${personId}
-         OR (r.to_person_id = ${personId} AND r.is_mutual = true)
-
-      UNION
-
-      -- Recursive: next-hop neighbors
-      SELECT r2.*, g.depth + 1
-      FROM relationships r2
-      INNER JOIN graph g ON (
-        r2.from_person_id IN (g.from_person_id, g.to_person_id)
-        OR (r2.to_person_id IN (g.from_person_id, g.to_person_id) AND r2.is_mutual = true)
-      )
-      WHERE g.depth < ${safeDepth}
-    )
-    SELECT DISTINCT ON (id) * FROM graph
-  `);
-
-  const edges = result as unknown as typeof relationships.$inferSelect[];
-
+  // Node hydration is a SEPARATE query and therefore needs the predicate
+  // again (ADR 0004 §3.2). Every endpoint above is already known-visible, so
+  // this is defence in depth for the edge set — but it is load-bearing for the
+  // root, which is in the id set whether or not it has any visible edge.
   const personIds = new Set<string>([personId]);
   for (const rel of edges) {
     personIds.add(rel.fromPersonId);
     personIds.add(rel.toPersonId);
   }
 
-  const nodes = await db.select({ id: people.id, name: people.name })
+  const nodes = await db
+    .select({ id: people.id, name: people.name })
     .from(people)
-    .where(inArray(people.id, Array.from(personIds)));
+    .where(and(inArray(people.id, Array.from(personIds)), visibleTo(PEOPLE_SCOPE, scope)));
 
   return { nodes, edges };
 }
