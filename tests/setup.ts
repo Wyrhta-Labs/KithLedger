@@ -25,7 +25,10 @@ if (!testDbName.endsWith('_test')) {
       'Export a DATABASE_URL whose database name ends in _test (e.g. kithledger_test).',
   );
 }
-import { people, interactions, reminders, relationships, apiKeys, householdMembers, users } from '../src/db/schema/index.js';
+import {
+  people, interactions, reminders, relationships, apiKeys, householdMembers, users,
+  personShares, interactionShares, relationshipShares, reminderShares,
+} from '../src/db/schema/index.js';
 
 beforeAll(async () => {
   await migrate(db, { migrationsFolder: './src/db/migrations' });
@@ -33,7 +36,14 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   // Clean tables in FK-safe order (api_keys and household_members reference
-  // users; domain tables reference people)
+  // users; domain tables reference people; the four *_shares tables reference
+  // a domain table AND users; every domain table's owner_id references users
+  // ON DELETE RESTRICT, so users must go last or the delete is refused)
+  // Share rows first: they reference both the domain tables and users.
+  await db.delete(personShares);
+  await db.delete(interactionShares);
+  await db.delete(relationshipShares);
+  await db.delete(reminderShares);
   await db.delete(interactions);
   await db.delete(reminders);
   await db.delete(relationships);

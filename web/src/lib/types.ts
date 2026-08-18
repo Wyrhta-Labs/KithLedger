@@ -2,7 +2,30 @@
 // Future options to eliminate duplication: extract to a shared npm package,
 // or generate from an OpenAPI spec (e.g. openapi-typescript).
 
-export interface Person {
+/**
+ * ADR 0004 §1 — per-member visibility of a node or edge. `household` is an
+ * explicit state, NOT "shared with every current member": a member added
+ * later sees `household` items automatically, while a `shared` set does not
+ * grow to include them.
+ */
+export type Visibility = 'private' | 'shared' | 'household';
+
+/**
+ * Owner + visibility, carried independently by every node AND every edge
+ * (ADR 0004 §1). Present on the wire from migration 0004 onward; enforcement
+ * (filtering by the caller's scope) lands with task B6, so until then these
+ * fields are informational and the API returns every row regardless.
+ *
+ * `ownerId` is nullable only during the B5..B6 window — the write path cannot
+ * stamp an owner until it carries a principal. Treat null as "unowned", not
+ * as "yours".
+ */
+export interface Owned {
+  ownerId: string | null;
+  visibility: Visibility;
+}
+
+export interface Person extends Owned {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -15,7 +38,7 @@ export interface Person {
   avatarUrl: string | null;
 }
 
-export interface Interaction {
+export interface Interaction extends Owned {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -30,7 +53,7 @@ export interface Interaction {
 /** Mirrors CHANNELS in src/validators/interactions.ts — the server enforces it. */
 export type InteractionChannel = 'in-person' | 'phone' | 'sms' | 'email' | 'video' | 'social';
 
-export interface Reminder {
+export interface Reminder extends Owned {
   id: string;
   createdAt: string;
   updatedAt: string;
@@ -48,7 +71,7 @@ export interface Reminder {
   leadDays: number | null;
 }
 
-export interface Relationship {
+export interface Relationship extends Owned {
   id: string;
   createdAt: string;
   updatedAt: string;

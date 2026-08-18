@@ -1,6 +1,7 @@
-import { pgTable, text, uuid, timestamp, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, check, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { people } from './people.js';
+import { ownerIdColumn, visibilityColumn, visibilityCheck } from './visibility.js';
 
 export const interactions = pgTable('interactions', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -13,7 +14,17 @@ export const interactions = pgTable('interactions', {
   channel: text('channel'),
   notes: text('notes'),
   sentiment: text('sentiment'),
+  /**
+   * ADR 0004 §1 — an interaction is an EDGE/property hanging off a person
+   * node, and its visibility is independent of that person's: a
+   * household-visible person can carry an owner-only note. See
+   * `visibility.ts`.
+   */
+  ownerId: ownerIdColumn(),
+  visibility: visibilityColumn(),
 }, (table) => [
+  visibilityCheck('interactions', table.visibility),
+  index('interactions_owner_id_idx').on(table.ownerId),
   check('interactions_type_check', sql`${table.type} IN ('meeting', 'call', 'message', 'email', 'other')`),
   check('interactions_sentiment_check', sql`${table.sentiment} IS NULL OR ${table.sentiment} IN ('positive', 'neutral', 'negative')`),
 ]);

@@ -1,6 +1,7 @@
-import { pgTable, text, uuid, timestamp, boolean, unique, check } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, boolean, unique, check, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { people } from './people.js';
+import { ownerIdColumn, visibilityColumn, visibilityCheck } from './visibility.js';
 
 export const relationships = pgTable('relationships', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -14,7 +15,18 @@ export const relationships = pgTable('relationships', {
   label: text('label'),
   isMutual: boolean('is_mutual').notNull().default(true),
   notes: text('notes'),
+  /**
+   * ADR 0004 §1 — a relationship is the graph's person-to-person EDGE, and
+   * its visibility is independent of BOTH endpoints. Two household-visible
+   * people can be joined by an edge only its owner sees; ADR 0004 §3.2 then
+   * says the edge is returned only when the endpoints are visible too. See
+   * `visibility.ts`.
+   */
+  ownerId: ownerIdColumn(),
+  visibility: visibilityColumn(),
 }, (table) => [
+  visibilityCheck('relationships', table.visibility),
+  index('relationships_owner_id_idx').on(table.ownerId),
   unique().on(table.fromPersonId, table.toPersonId),
   check('relationships_type_check', sql`${table.type} IN ('friend', 'family', 'colleague', 'acquaintance', 'other')`),
   check('relationships_no_self_link', sql`${table.fromPersonId} <> ${table.toPersonId}`),

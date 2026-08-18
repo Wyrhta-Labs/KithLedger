@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-member visibility, schema only** (task B5 of Wyrhta-Labs/wyrhta-labs#1,
+  ADR 0004 §1 + §4). Migration `0004` lands the access-control data model with
+  enforcement deliberately **inert**: nothing filters yet, no principal is
+  threaded into a service, and the graph traversal is untouched. That is task
+  B6/B7's work, and it is easier to build on a schema that is right than on
+  one that shipped early.
+  - **`owner_id` + `visibility` on all four domain tables.** ADR 0004 says
+    "every node and every edge/property", so `people` (the graph's NODES) and
+    `interactions` / `relationships` / `reminders` (its EDGES — a dated event,
+    a person-to-person link, and a follow-up, each hanging off a person) each
+    carry their own pair. An edge's visibility is independent of its
+    endpoints, which is the whole reason node-only visibility was rejected: a
+    household-visible person can carry an owner-only note.
+  - **`visibility` is `private` | `shared` | `household`**, constrained by a
+    CHECK on a `text` column the way this repo already constrains `type`,
+    `status`, `sentiment` and `kind`. `household` is an EXPLICIT state, not a
+    materialised share list containing every member — that is what makes
+    membership changes correct by construction: a member added tomorrow sees
+    `household` items automatically, and a `shared` subset does not silently
+    grow to include them. Default on create is `household` (ADR 0004 §4),
+    enforced as a column default so it holds for REST, MCP, migrations and
+    psql alike.
+  - **`owner_id` references `users.id` ON DELETE RESTRICT.** B4's one id space
+    makes this a real foreign key covering members and the local admin alike.
+    RESTRICT, not CASCADE: ADR 0004 §4 mandates reassign-on-offboarding, and a
+    cascade would silently destroy exactly the data that flow (task B9) exists
+    to decide about. The column is nullable *only* until B6 — stamping an
+    owner on insert needs the calling principal, which B5 is explicitly not
+    allowed to thread.
+  - **Four share tables** (`person_shares`, `interaction_shares`,
+    `relationship_shares`, `reminder_shares`), each a composite-PK
+    `(entity_id, member_id)` with `member_id` referencing `users.id`. One
+    polymorphic `(entity_type, entity_id, member_id)` table was rejected:
+    Postgres cannot foreign-key a polymorphic entity id, and on an
+    access-control table a dangling grant is a silent authorisation fault, not
+    untidiness. Per-entity tables also give B6 an exact index probe per
+    `EXISTS` — including inside `getPersonGraph`'s recursive CTE, which
+    touches people and relationships in one statement and would otherwise
+    self-join a single share table twice on a four-value discriminator.
+  - **Backfill: existing rows become `household`, owned by the local admin** —
+    the `users` row with no `household_members` row, B4's definition of a
+    locally authored account. The service has been single-account, so every
+    row was readable by every caller and every row was in fact written through
+    that account; `household` + admin is the pair that leaves today's
+    observable behaviour unchanged once B6 switches enforcement on. `private`
+    would make the whole existing dataset vanish from the UI; a `shared` set
+    enumerating today's members would freeze the audience as of migration time
+    and quietly exclude everyone who joins later.
+  - `web/src/lib/types.ts` gains `Visibility` and an `Owned` interface that
+    `Person` / `Interaction` / `Reminder` / `Relationship` extend, since the
+    services `SELECT *` and the new columns therefore surface on the wire
+    immediately.
+
 - **Satellite identity — verifying Heorth-issued member tokens** (task B1d of
   Wyrhta-Labs/wyrhta-labs#1, ADR 0002 phase B / ADR 0009). Heorth signs
   short-lived, audience-bound member tokens with an asymmetric key and
