@@ -43,6 +43,13 @@
       "when": 1787092174165,
       "tag": "0005_dry_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787093947828,
+      "tag": "0006_deep_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

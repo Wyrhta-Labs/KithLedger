@@ -1,6 +1,8 @@
 import { sign } from 'hono/jwt';
 import { eq } from 'drizzle-orm';
 import { config } from '../src/config/env.js';
+import { identity } from '../src/identity.js';
+import type { CredentialKind } from '../src/services/credentials.js';
 import { db } from '../src/db/index.js';
 import { users, householdMembers } from '../src/db/schema/index.js';
 
@@ -77,4 +79,32 @@ export async function headersFor(userId: string): Promise<Record<string, string>
 export async function authHeaders(): Promise<Record<string, string>> {
   await ensureLocalAdmin();
   return headersFor(LOCAL_ADMIN_ID);
+}
+
+/**
+ * Issue a real `kl_` key of one of ADR 0004 §2's three kinds (B8) and return
+ * the raw key.
+ *
+ * A REAL key through the real issuing path, not a fixture row: the whole claim
+ * B8 makes is that the kind is decided from the stored credential record, so a
+ * test that hand-wrote that record would be testing its own fixture.
+ */
+export async function issueKeyOfKind(
+  kind: CredentialKind,
+  ownerId: string = LOCAL_ADMIN_ID,
+): Promise<string> {
+  await ensureLocalAdmin(ownerId);
+  const created = await identity.createApiKey(ownerId, `b8-${kind}`, kind);
+  return created.key;
+}
+
+/** Request headers presenting a `kl_` key of the given kind. */
+export async function keyHeadersOfKind(
+  kind: CredentialKind,
+  ownerId: string = LOCAL_ADMIN_ID,
+): Promise<Record<string, string>> {
+  return {
+    Authorization: `Bearer ${await issueKeyOfKind(kind, ownerId)}`,
+    'Content-Type': 'application/json',
+  };
 }

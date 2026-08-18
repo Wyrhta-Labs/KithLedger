@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { requireAuth } from '../identity.js';
+import { requireAuth, requireDataAccess } from '../identity.js';
 import * as service from '../services/reminders.js';
 import { scopeFor, NOT_OWNER } from '../services/scope.js';
 import { createReminderSchema, updateReminderSchema, listRemindersQuerySchema, snoozeReminderSchema } from '../validators/reminders.js';
@@ -21,7 +21,7 @@ function scope(c: Context) {
   return scopeFor(principal);
 }
 
-remindersRouter.use('*', requireAuth);
+remindersRouter.use('*', requireAuth, requireDataAccess);
 
 remindersRouter.get('/', async (c) => {
   const query = listRemindersQuerySchema.safeParse(c.req.query());

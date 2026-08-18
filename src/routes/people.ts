@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { requireAuth } from '../identity.js';
+import { requireAuth, requireDataAccess } from '../identity.js';
 import * as service from '../services/people.js';
 import { scopeFor, NOT_OWNER } from '../services/scope.js';
 import { createPersonSchema, updatePersonSchema, listPeopleQuerySchema } from '../validators/people.js';
@@ -21,7 +21,7 @@ function scope(c: Context) {
   return scopeFor(principal);
 }
 
-peopleRouter.use('*', requireAuth);
+peopleRouter.use('*', requireAuth, requireDataAccess);
 
 peopleRouter.get('/', async (c) => {
   const query = listPeopleQuerySchema.safeParse(c.req.query());

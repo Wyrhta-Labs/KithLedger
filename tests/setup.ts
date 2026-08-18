@@ -27,7 +27,7 @@ if (!testDbName.endsWith('_test')) {
 }
 import {
   people, interactions, reminders, relationships, apiKeys, householdMembers, users,
-  personShares, interactionShares, relationshipShares, reminderShares,
+  personShares, interactionShares, relationshipShares, reminderShares, apiKeyCredentials,
 } from '../src/db/schema/index.js';
 
 beforeAll(async () => {
@@ -48,6 +48,7 @@ beforeEach(async () => {
   await db.delete(reminders);
   await db.delete(relationships);
   await db.delete(people);
+  await db.delete(apiKeyCredentials);
   await db.delete(apiKeys);
   await db.delete(householdMembers);
   await db.delete(users);

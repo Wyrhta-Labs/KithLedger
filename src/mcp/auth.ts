@@ -2,6 +2,7 @@ import type { AuthAdapter, McpPrincipal } from '@wyrhta/core/mcp';
 import { logEvent } from '@wyrhta/core/lib';
 import { config } from '../config/env.js';
 import { identity } from '../identity.js';
+import { credentialOf } from '../services/credentials.js';
 
 /**
  * Builds an MCP {@link AuthAdapter} that resolves a `kl_`-prefixed API key
@@ -20,6 +21,21 @@ export function createMcpAuthAdapter(getCredential: () => string | undefined): A
       const principal = await identity.validateApiKey(cred);
       if (!principal) {
         logEvent({ event: 'mcp.auth.rejected', auth_type: 'api_key', success: false });
+        throw new Error('MCP_UNAUTHORIZED');
+      }
+      // B8 (ADR 0004 §2): the MCP tools resolve their caller to a MEMBER scope
+      // (`memberScope(ctx.principal.userId)`), and `McpPrincipal` has no room
+      // for the credential kind. So a household or ops key presented here would
+      // silently be read as the personal scope of the account that issued it —
+      // precisely the widening the three separate credentials exist to prevent.
+      // Refuse anything but a member key rather than paper over that.
+      if (credentialOf(principal) !== 'member') {
+        logEvent({
+          event: 'mcp.auth.rejected',
+          auth_type: 'api_key',
+          success: false,
+          user_id: principal.userId,
+        });
         throw new Error('MCP_UNAUTHORIZED');
       }
       logEvent({

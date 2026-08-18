@@ -5,4 +5,5 @@ export * from './relationships.js';
 export * from './members.js';
 export * from './visibility.js';
 export * from './shares.js';
+export * from './credentials.js';
 export { users, apiKeys, userRole } from '@wyrhta/core/identity';

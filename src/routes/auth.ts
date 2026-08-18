@@ -4,6 +4,11 @@ import { ok, err, rateLimit } from '@wyrhta/core/http';
 import { validationError } from '../lib/validation.js';
 import { logEvent } from '@wyrhta/core/lib';
 import { identity, requireJwt, requireLocalAccount, ADMIN_EMAIL } from '../identity.js';
+import {
+  CREDENTIAL_KINDS,
+  DEFAULT_CREDENTIAL_KIND,
+  credentialKindForKey,
+} from '../services/credentials.js';
 
 export const authRouter = new Hono();
 
@@ -17,8 +22,20 @@ const tokenSchema = z.object({
   password: z.string(),
 });
 
+/**
+ * ADR 0004 §2's three principals are three SEPARATE credentials, so issuing a
+ * key has to say WHICH one it is (task B8). Defaulting to `member` keeps every
+ * existing caller — the web UI's key page, `KITHLEDGER_MCP_API_KEY`, scripts —
+ * creating exactly the key they created before.
+ *
+ * Only a JWT-authenticated LOCAL account reaches this route (`requireJwt` +
+ * `requireLocalAccount`), so no API key of any kind can issue a key, and in
+ * particular a household or ops key cannot widen itself by minting a member
+ * key.
+ */
 const createKeySchema = z.object({
   name: z.string().min(1),
+  kind: z.enum(CREDENTIAL_KINDS).default(DEFAULT_CREDENTIAL_KIND),
 });
 
 function getIp(c: Parameters<ReturnType<typeof rateLimit>>[0]): string {
@@ -66,15 +83,21 @@ authRouter.get('/keys', requireJwt, requireLocalAccount, async (c) => {
   const rows = await identity.listApiKeys(callerId(c));
   // Core names the column `prefix`; POST /keys already returns it as
   // `keyPrefix`. Normalize here so both endpoints expose one field name.
+  // `kind` (B8) makes the three principals visible to whoever manages them —
+  // "which of these is the dashboard key" must not be a guess at revocation
+  // time.
   return ok(
     c,
-    rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      keyPrefix: row.prefix,
-      lastUsedAt: row.lastUsedAt,
-      createdAt: row.createdAt,
-    }))
+    await Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        name: row.name,
+        keyPrefix: row.prefix,
+        kind: await credentialKindForKey(row.id),
+        lastUsedAt: row.lastUsedAt,
+        createdAt: row.createdAt,
+      }))
+    )
   );
 });
 
@@ -84,13 +107,26 @@ authRouter.post('/keys', requireJwt, requireLocalAccount, async (c) => {
     return validationError(c, body.error);
   }
 
-  const key = await identity.createApiKey(callerId(c), body.data.name);
+  const key = await identity.createApiKey(callerId(c), body.data.name, body.data.kind);
 
-  logEvent({ event: 'auth.key.created', key_id: key.id, key_name: key.name, request_id: c.get('requestId') });
+  logEvent({
+    event: 'auth.key.created',
+    key_id: key.id,
+    key_name: key.name,
+    credential_kind: key.kind,
+    request_id: c.get('requestId'),
+  });
 
   return ok(
     c,
-    { id: key.id, name: key.name, key: key.key, keyPrefix: key.prefix, createdAt: key.createdAt },
+    {
+      id: key.id,
+      name: key.name,
+      key: key.key,
+      keyPrefix: key.prefix,
+      kind: key.kind,
+      createdAt: key.createdAt,
+    },
     undefined,
     201
   );

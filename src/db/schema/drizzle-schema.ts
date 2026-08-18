@@ -6,4 +6,5 @@ export * from './relationships';
 export * from './members';
 export * from './visibility';
 export * from './shares';
+export * from './credentials';
 export { users, apiKeys, userRole } from '@wyrhta/core/identity';

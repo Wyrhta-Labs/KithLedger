@@ -19,6 +19,14 @@ import type { MiddlewareHandler } from 'hono';
 import { JwksClient } from './satellite/jwks.js';
 import { withSatelliteAuth, type SatellitePrincipalResolver } from './satellite/auth.js';
 import { asHouseholdRole, isHouseholdMember, provisionMember } from './services/members.js';
+import {
+  credentialKindForKey,
+  credentialOf,
+  recordCredentialKind,
+  type CredentialKind,
+  type ScopedPrincipal,
+} from './services/credentials.js';
+import { READ_ONLY_SCOPE } from './services/scope.js';
 import { db } from './db/index.js';
 import { config } from './config/env.js';
 
@@ -41,7 +49,19 @@ export const API_KEY_PREFIX = 'kl_';
 export const ADMIN_EMAIL = 'admin@kithledger.local';
 export const ADMIN_HANDLE = 'admin';
 
-/** Resolve a raw API key to the authenticated principal (used by the auth guards). */
+/**
+ * Resolve a raw API key to the authenticated principal (used by the auth
+ * guards).
+ *
+ * B8 (ADR 0004 §2): this is the ONE place a `kl_` key's principal TYPE is
+ * decided, and it is decided from the key's own stored record — never from
+ * what the request asks for. A key with no `api_key_credentials` row is
+ * refused outright rather than treated as a member key: see
+ * `src/db/schema/credentials.ts` for why the fail-closed direction matters
+ * (the alternative silently WIDENS a household key to a member's full personal
+ * scope). Migration `0006` backfills every pre-B8 key as `member`, so existing
+ * keys are unaffected.
+ */
 async function resolveApiKey(raw: string): Promise<Principal | null> {
   const keyRow = await validateApiKey(raw, async (hash) => {
     const [row] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, hash)).limit(1);
@@ -52,7 +72,20 @@ async function resolveApiKey(raw: string): Promise<Principal | null> {
   const [user] = await db.select().from(users).where(eq(users.id, keyRow.userId)).limit(1);
   if (!user) return null;
 
-  return { type: 'api_key', userId: user.id, role: user.role };
+  const credential = await credentialKindForKey(keyRow.id);
+  if (!credential) {
+    logEvent({
+      event: 'auth.key.rejected',
+      key_id: keyRow.id,
+      user_id: user.id,
+      success: false,
+      reason: 'no_credential_record',
+    });
+    return null;
+  }
+
+  const principal: ScopedPrincipal = { type: 'api_key', userId: user.id, role: user.role, credential };
+  return principal;
 }
 
 /** Core identity functions, partially applied over KithLedger's db + config. */
@@ -61,8 +94,20 @@ export const identity = {
   authenticate: (email: string, password: string) => authenticate(db, email, password),
   issueToken: (user: { id: string; role: Role }, ttlSeconds: number = config.jwtTtlSeconds) =>
     issueToken(user, config.jwtSecret, ttlSeconds),
-  createApiKey: (userId: string, name: string, prefix: string = API_KEY_PREFIX) =>
-    createApiKey(db, userId, name, prefix),
+  createApiKey: async (
+    userId: string,
+    name: string,
+    kind: CredentialKind = 'member',
+    prefix: string = API_KEY_PREFIX,
+  ) => {
+    // The key and the record of WHAT KIND of key it is are created together;
+    // a key without its record is dead on arrival (`resolveApiKey` refuses
+    // it), so the failure mode of the gap between these two statements is an
+    // unusable credential, never an over-privileged one.
+    const key = await createApiKey(db, userId, name, prefix);
+    await recordCredentialKind(key.id, kind);
+    return { ...key, kind };
+  },
   listApiKeys: (userId: string) => listApiKeys(db, userId),
   revokeApiKey: (userId: string, keyId: string) => revokeApiKey(db, userId, keyId),
   validateApiKey: resolveApiKey,
@@ -170,6 +215,73 @@ export const requireLocalAccount: MiddlewareHandler = async (c, next) => {
     return err(c, 'FORBIDDEN', 'API keys are managed by local accounts only', 403);
   }
   return next();
+};
+
+/**
+ * ADR 0004 §2, enforced at the door of every domain router (task B8).
+ *
+ * Two refusals, both derived from the credential's own kind and from nothing
+ * about the request's contents:
+ *
+ *  - **The admin / ops key has NO DATA PATH.** Not read, not write, not
+ *    counts. It exists for provisioning, migrations, schema and health — none
+ *    of which read a person, an interaction, a relationship or a reminder — so
+ *    it is refused before a query is even built. 403 and not 404 here, and
+ *    that is not a violation of §3.1's "invisible = nonexistent": §3.1 is
+ *    about a SPECIFIC item, where a 403 would confirm the item exists. This
+ *    refusal is about the whole resource and discloses nothing about any item;
+ *    an ops key learns only that it is an ops key, which it already knew.
+ *  - **The household dashboard key is READ-ONLY.** Every mutation in this
+ *    service is a non-GET, so refusing non-GET refuses create, update, delete,
+ *    share, complete, snooze and dismiss in one rule, rather than in N
+ *    handlers that each have to remember. `ownerFor()` in
+ *    `src/services/scope.ts` refuses the same thing one layer down — it has no
+ *    member id to stamp as `owner_id`, so a write is not merely forbidden but
+ *    unrepresentable — and the catch below turns that structural refusal into
+ *    a 403 rather than a 500 should any future route mutate on a GET.
+ *
+ * Deliberately NOT role-based: `role === 'admin'` is never consulted anywhere
+ * in the access-control path (ADR 0004 §4, no standing god-mode). What a
+ * caller may see follows from which credential it presented, and the widest of
+ * the three is still only one member's personal scope.
+ */
+export const requireDataAccess: MiddlewareHandler = async (c, next) => {
+  const principal = c.get('principal');
+  if (!principal) return err(c, 'UNAUTHORIZED', 'Authentication required', 401);
+
+  const credential = credentialOf(principal);
+
+  if (credential === 'ops') {
+    logEvent({
+      event: 'auth.credential.forbidden',
+      user_id: principal.userId,
+      success: false,
+      reason: 'ops_credential_has_no_data_access',
+      request_id: c.get('requestId'),
+    });
+    return err(c, 'FORBIDDEN', 'This credential has no access to household data', 403);
+  }
+
+  if (credential === 'household' && c.req.method !== 'GET') {
+    logEvent({
+      event: 'auth.credential.forbidden',
+      user_id: principal.userId,
+      success: false,
+      reason: 'household_credential_is_read_only',
+      request_id: c.get('requestId'),
+    });
+    return err(c, 'FORBIDDEN', 'The household dashboard credential is read-only', 403);
+  }
+
+  try {
+    await next();
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message === READ_ONLY_SCOPE) {
+      c.res = err(c, 'FORBIDDEN', 'The household dashboard credential is read-only', 403);
+      return;
+    }
+    throw e;
+  }
 };
 
 /** Idempotently seed the single admin user from ADMIN_PASSWORD (first boot). */

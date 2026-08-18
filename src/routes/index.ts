@@ -6,7 +6,7 @@ import { interactionsRouter } from './interactions.js';
 import { remindersRouter } from './reminders.js';
 import { relationshipsRouter } from './relationships.js';
 import * as relationshipService from '../services/relationships.js';
-import { requireAuth } from '../identity.js';
+import { requireAuth, requireDataAccess } from '../identity.js';
 import { scopeFor } from '../services/scope.js';
 import { graphQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
@@ -21,7 +21,7 @@ export function mountRoutes(app: Hono) {
   app.route('/api/v1/relationships', relationshipsRouter);
 
   // Graph endpoint nested under people
-  app.get('/api/v1/people/:id/graph', requireAuth, async (c) => {
+  app.get('/api/v1/people/:id/graph', requireAuth, requireDataAccess, async (c) => {
     const query = graphQuerySchema.safeParse(c.req.query());
     if (!query.success) return validationError(c, query.error, 'query parameters');
 

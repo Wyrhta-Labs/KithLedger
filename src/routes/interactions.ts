@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { requireAuth } from '../identity.js';
+import { requireAuth, requireDataAccess } from '../identity.js';
 import * as service from '../services/interactions.js';
 import { scopeFor, NOT_OWNER } from '../services/scope.js';
 import { createInteractionSchema, updateInteractionSchema, listInteractionsQuerySchema } from '../validators/interactions.js';
@@ -21,7 +21,7 @@ function scope(c: Context) {
   return scopeFor(principal);
 }
 
-interactionsRouter.use('*', requireAuth);
+interactionsRouter.use('*', requireAuth, requireDataAccess);
 
 interactionsRouter.get('/', async (c) => {
   const query = listInteractionsQuerySchema.safeParse(c.req.query());

@@ -1,6 +1,7 @@
 import { sql, eq, type SQL } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { Principal } from '@wyrhta/core/auth';
+import { credentialOf } from './credentials.js';
 import { db } from '../db/index.js';
 import {
   people,
@@ -40,15 +41,20 @@ import {
  * `household` — the always-on dashboard's service principal: exactly the
  * items marked `household`, read-only. This is a SCOPE, not a bypass — it is
  * strictly narrower than any member's, which is the point: a leaked dashboard
- * key exposes only the household slice. B8 gives it its own credential; B6
- * only makes the scope expressible, so nothing today resolves to it and
- * everything that reaches a service already carries a member id.
+ * key exposes only the household slice. B6 made the scope expressible; B8 gave
+ * it its own credential (`kind = 'household'` on a `kl_` key), so this variant
+ * is now reachable and is reached ONLY that way.
  *
- * There is deliberately NO third variant for the admin/ops key. ADR 0004 §4's
- * "no standing god-mode" is enforced by there being nothing to bypass with:
- * `role === 'admin'` is never consulted here, and the local admin sees other
- * members' items exactly as any member would — as an owner of their own, and
- * not at all when they are `private`.
+ * There is deliberately NO third variant for the admin/ops key, even though
+ * ADR 0004 §2 names three principals. The third one's defining property is
+ * that it has NO data access, and the honest encoding of "no scope" is not a
+ * third scope — a scope is a thing queries are built from, and building a
+ * query for the ops key is already the bug. It is refused before a scope is
+ * ever needed (`requireDataAccess`), and {@link scopeFor} throws rather than
+ * inventing one. ADR 0004 §4's "no standing god-mode" then holds by there
+ * being nothing to bypass with: `role === 'admin'` is never consulted here,
+ * and the local admin sees other members' items exactly as any member would —
+ * as an owner of their own, and not at all when they are `private`.
  */
 export type Scope =
   | { readonly kind: 'member'; readonly memberId: string }
@@ -62,16 +68,39 @@ export function memberScope(memberId: string): Scope {
 /** The household service principal's read-only scope (ADR 0004 §2.2). */
 export const HOUSEHOLD_SCOPE: Scope = { kind: 'household' };
 
+/** Thrown when a credential with no data path (ops) reaches a query. */
+export const NO_DATA_ACCESS = 'NO_DATA_ACCESS';
+
 /**
- * The scope of an authenticated caller.
+ * The scope of an authenticated caller — ADR 0004 §2's three principals,
+ * resolved from the credential the caller presented and from nothing else
+ * (task B8; see `src/services/credentials.ts` for where the kind is decided).
  *
- * Every principal that reaches a route today — the local admin's HS256 JWT, a
- * `kl_` API key, a Heorth member token — is a member principal, and `userId`
- * is a `users.id` in all three (B4 put members and the local admin in one id
- * space). The role is not consulted, on purpose.
+ *  1. **member** — the local admin's HS256 JWT, a Heorth member token, or a
+ *     `kl_` key issued as a member key. `userId` is a `users.id` in all three
+ *     (B4 put members and the local admin in one id space).
+ *  2. **household** — the always-on dashboard key: {@link HOUSEHOLD_SCOPE},
+ *     which is read-only and strictly narrower than ANY member's. Note that
+ *     its `principal.userId` (the local account that issued the key) is
+ *     deliberately DISCARDED here: were it kept, a leaked dashboard key would
+ *     read as that account's personal scope, which is exactly the widening
+ *     ADR 0004 §2 separates the credentials to prevent.
+ *  3. **ops** — no data path at all, so there is no scope to return and this
+ *     throws. `requireDataAccess` refuses these callers at the router, so this
+ *     is a backstop: any future code path that reaches a query with an ops
+ *     principal fails loudly instead of quietly resolving to something.
+ *
+ * The role is not consulted, on purpose (§4: no standing god-mode).
  */
 export function scopeFor(principal: Principal): Scope {
-  return memberScope(principal.userId);
+  switch (credentialOf(principal)) {
+    case 'household':
+      return HOUSEHOLD_SCOPE;
+    case 'ops':
+      throw new Error(NO_DATA_ACCESS);
+    case 'member':
+      return memberScope(principal.userId);
+  }
 }
 
 /** Thrown when a non-owner attempts an owner-only mutation (ADR 0004 §4). */
