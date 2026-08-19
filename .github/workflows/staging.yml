@@ -1,0 +1,83 @@
+name: tests
+
+# The real test gate: the full Vitest suite against a live Postgres. Build and
+# test only — images come from build-image.yml. Runs on main, the pre-alpha
+# single-trunk branch, so every push and every pull request is covered.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: backend (typecheck + test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: kith
+          POSTGRES_PASSWORD: kithpw
+          # Named `_test` because tests/setup.ts refuses any database whose name
+          # does not end in _test — it truncates every table between tests.
+          POSTGRES_DB: kithledger_test
+        ports:
+          - 5432:5432
+        # Wait until Postgres is accepting connections before the job runs.
+        options: >-
+          --health-cmd "pg_isready -U kith -d kithledger_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://kith:kithpw@localhost:5432/kithledger_test
+      JWT_SECRET: ci-jwt-secret-at-least-32-chars-long-0000000
+      ADMIN_PASSWORD: ci-admin-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # @wyrhta/core is a git dependency that builds on install (ADR 0010), so
+      # this step needs git and a toolchain — both present on the runner.
+      - name: Install dependencies
+        run: npm ci
+
+      # tests/setup.ts migrates in beforeAll, so this is not strictly required.
+      # Run it anyway to prove the migration folder applies cleanly from empty.
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+  web:
+    name: web (build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Web build
+        run: npm run build
+        working-directory: web
