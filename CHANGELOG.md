@@ -225,6 +225,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `@wyrhta/core` bumped from `v0.1.3` to `v0.2.0` (asymmetric keys, JWKS
   helpers, issuer/audience convention, clock-skew leeway). Non-breaking: the
   pre-existing suite passes unchanged (16 files / 88 tests) before and after.
+- **`@wyrhta/core` bumped from `v0.2.0` to `v0.3.0`** (task A9 of
+  Wyrhta-Labs/wyrhta-labs#1, ADR 0008) — core dropped its `./mcp` scaffold
+  (`createMcpServer`, `McpTool`, `AuthAdapter`, `McpPrincipal`) and the
+  `@modelcontextprotocol/sdk` dependency with it. A8 had already deleted this
+  service's own MCP server and its direct SDK dependency, so this pin bump is
+  what finally removes the SDK from KithLedger's tree: it was still arriving
+  transitively through core. `grep -c modelcontextprotocol package-lock.json`
+  is now `0` and `npm ls @modelcontextprotocol/sdk` reports `(empty)`.
+  Non-breaking: nothing in `src/` referenced the removed exports, and the suite
+  passes unchanged (22 files / 233 tests) before and after.
 
 ### Removed
 

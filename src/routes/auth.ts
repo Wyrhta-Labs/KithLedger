@@ -25,8 +25,8 @@ const tokenSchema = z.object({
 /**
  * ADR 0004 §2's three principals are three SEPARATE credentials, so issuing a
  * key has to say WHICH one it is (task B8). Defaulting to `member` keeps every
- * existing caller — the web UI's key page, `KITHLEDGER_MCP_API_KEY`, scripts —
- * creating exactly the key they created before.
+ * existing caller — the web UI's key page, scripts — creating exactly the key
+ * they created before.
  *
  * Only a JWT-authenticated LOCAL account reaches this route (`requireJwt` +
  * `requireLocalAccount`), so no API key of any kind can issue a key, and in
