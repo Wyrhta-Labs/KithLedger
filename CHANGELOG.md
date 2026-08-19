@@ -226,6 +226,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   helpers, issuer/audience convention, clock-skew leeway). Non-breaking: the
   pre-existing suite passes unchanged (16 files / 88 tests) before and after.
 
+### Removed
+
+- **The embedded MCP server** (task A8 of Wyrhta-Labs/wyrhta-labs#1, ADR 0008).
+  `src/mcp/` — the stdio entrypoint, the `kl_`-key auth adapter, the registry
+  and the 13 `kith.*` tools — and its six test files are gone. KithLedger is
+  now REST-only.
+  - The tools live in `Wyrhta-Labs/heorth-mcp`, a standalone MCP server that
+    reaches this service over its REST API. Nothing was ported *out* of
+    KithLedger to make that work: every deleted file was a thin wrapper that
+    parsed a validator schema, resolved `memberScope(ctx.principal.userId)`
+    and called a `src/services/` function the REST routes already call. The
+    REST API is byte-for-byte unchanged in this commit — no route, service,
+    validator or schema file is touched — which is what makes the replacement
+    equivalent rather than merely similar.
+  - Verified before deleting, not after: the rebuilt stack served
+    `tools/list` = 50 tools, 13 of them `kith.*`, and `kith.list_people` /
+    `list_reminders` / `list_interactions` / `list_relationships` returned real
+    KithLedger data through heorth-mcp, over the full `he_` key ->
+    Heorth-issued satellite token -> JWKS verification -> JIT provisioning
+    chain.
+  - **This MCP server was stdio-only and never deployable** beside the
+    containerised API. That is why `docs/strategy.md`'s old "move KithLedger's
+    MCP to HTTP" prerequisite was dropped rather than done — the surface moved
+    out instead of growing a transport.
+  - `KITHLEDGER_MCP_API_KEY` is removed from `src/config/env.ts` (and
+    `config.mcpApiKey`) and from `.env.example`; the `npm run mcp` script and
+    the direct `@modelcontextprotocol/sdk` dependency are dropped. The SDK
+    remains in the tree transitively via `@wyrhta/core`, which sheds its own
+    MCP scaffold in task A9. Existing `kl_` keys are unaffected: B8's
+    `api_key_credentials` rows and migration `0006`'s backfill are untouched.
+  - Suite: 28 files / 259 tests -> 22 files / 233 tests, all passing — exactly
+    the 6 files and 26 tests deleted, nothing else.
+
 ### Fixed
 
 - **A household member's first requests can no longer be refused when they

@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "dev:api": "tsx watch src/index.ts",
-    "mcp": "tsx src/mcp/index.ts",
     "dev:web": "cd web && npm run dev",
     "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
     "build": "tsc --project tsconfig.json",
@@ -29,7 +28,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@wyrhta/core": "github:Wyrhta-Labs/wyrhta-core#v0.2.0",
     "drizzle-orm": "^0.39.3",
     "hono": "^4.7.4",

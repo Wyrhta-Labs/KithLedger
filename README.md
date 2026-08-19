@@ -1,6 +1,6 @@
 # KithLedger
 
-*Kith* — an Old English word for one's circle of friends, acquaintances, and family — is the foundation of KithLedger: an API-first database for tracking and nurturing personal relationships. KithLedger provides structured **REST and MCP** endpoints for both web interfaces and AI agents, keeping your entire social graph programmatically accessible. A ledger for the people who matter.
+*Kith* — an Old English word for one's circle of friends, acquaintances, and family — is the foundation of KithLedger: an API-first database for tracking and nurturing personal relationships. KithLedger provides a structured **REST** API for web interfaces and AI agents alike, keeping your entire social graph programmatically accessible. A ledger for the people who matter.
 
 ---
 
@@ -114,56 +114,17 @@ and revoking are scoped to whoever presented the JWT.
 
 ---
 
-## MCP Server
+## AI agents (MCP)
 
-KithLedger exposes its domain to AI agents over the Model Context Protocol, in
-addition to REST. The MCP server calls the same service layer as REST, so
-business rules (recurrence, mutual relationships, conflict handling) and the
-audit trail are identical.
+KithLedger no longer ships an MCP server. The `kith.*` tools live in
+[`Wyrhta-Labs/heorth-mcp`](https://github.com/Wyrhta-Labs/heorth-mcp), a
+standalone MCP server that reaches this service over the REST API documented
+below — same routes, same auth, same access-control rules. There is no
+KithLedger-internal path an agent takes that a REST client does not.
 
-### Run it
-
-```bash
-npm run mcp   # migrations + admin seed run automatically, then stdio transport
-```
-
-### Authenticate
-
-The MCP server reads a `kl_` API key from the `KITHLEDGER_MCP_API_KEY`
-environment variable. Create one over REST while authenticated as the admin
-(JWT), then set it in the MCP server's environment:
-
-```bash
-curl -X POST http://localhost:4002/api/v1/auth/keys \
-  -H 'Authorization: Bearer <jwt>' \
-  -H 'Content-Type: application/json' \
-  -d '{"name": "mcp-agent"}'
-# Returns a kl_... key — save it, shown only once
-
-export KITHLEDGER_MCP_API_KEY=kl_...
-npm run mcp
-```
-
-A valid key resolves to the single admin user. A missing, invalid, or
-non-`kl_` value is rejected — the server errors on the first tool call.
-
-### Tools (namespaced `kith.*`)
-
-| Tool | Behavior |
-|---|---|
-| `kith.list_people` | List people (`q`, `tags`, `birthday_month`) |
-| `kith.get_person` | Get one person |
-| `kith.create_person` | Create a person |
-| `kith.update_person` | Update a person |
-| `kith.get_person_graph` | Ego network (`depth` 1-3) |
-| `kith.list_interactions` | List interactions (`person_id`, `type`, `from`, `to`) |
-| `kith.log_interaction` | Log an interaction |
-| `kith.list_reminders` | List reminders (`status`, `overdue`) |
-| `kith.create_reminder` | Create a reminder |
-| `kith.complete_reminder` | Complete (creates next if recurring) |
-| `kith.snooze_reminder` | Snooze a reminder |
-| `kith.list_relationships` | List relationships |
-| `kith.create_relationship` | Create a relationship |
+The MCP server that used to live in `src/mcp/` spoke stdio only and was never
+deployable alongside the containerised API; ADR 0008 moved the surface out
+rather than porting it to HTTP.
 
 ---
 
