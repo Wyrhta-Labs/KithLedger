@@ -53,6 +53,7 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
-    "esbuild@0.25.12": true
+    "esbuild@0.25.12": true,
+    "argon2@0.41.1": true
   }
 }
