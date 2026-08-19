@@ -1,6 +1,7 @@
 {
   "name": "kithledger",
   "version": "0.3.0",
+  "license": "MIT",
   "description": "API-first database for tracking and nurturing personal relationships",
   "type": "module",
   "scripts": {
