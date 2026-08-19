@@ -18,7 +18,7 @@ The API starts at `http://localhost:4002`. Migrations run automatically on start
 
 ### Local development
 
-Requires PostgreSQL 18 running locally.
+Requires Node.js 22 and PostgreSQL 18 running locally.
 
 ```bash
 cp .env.example .env
@@ -27,6 +27,24 @@ npm install
 npm run db:migrate
 npm run dev
 ```
+
+### Which way to run it
+
+| | Use |
+|---|---|
+| `docker-compose.yml` (this repo) | **Start here.** KithLedger plus its own PostgreSQL, nothing else. This is the supported path for running KithLedger on its own. |
+| [`deploy/`](https://github.com/Wyrhta-Labs/wyrhta) in the meta repo | The whole household stack — Heorth, KithLedger, heorth-mcp and one shared PostgreSQL. Use it when you want the services talking to each other, e.g. Heorth's reminders feed reading from here. |
+
+The two are alternatives, not layers. Do not run both against the same database.
+
+### Two things worth knowing before you expose it
+
+- **`CORS_ORIGIN` ships as `*`**, which is right for localhost and wrong
+  everywhere else — KithLedger holds your relationship graph. Set your real
+  origin before this reaches anything but your own machine.
+- **The test suite is destructive.** `tests/setup.ts` truncates every table
+  between tests and refuses any database whose name does not end in `_test`.
+  Never point `DATABASE_URL` at data you care about while running it.
 
 ---
 
