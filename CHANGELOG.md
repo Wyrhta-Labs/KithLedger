@@ -226,6 +226,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   helpers, issuer/audience convention, clock-skew leeway). Non-breaking: the
   pre-existing suite passes unchanged (16 files / 88 tests) before and after.
 
+### Fixed
+
+- **A household member's first requests can no longer be refused when they
+  arrive together** (B4 follow-up, Wyrhta-Labs/wyrhta-labs#1). Just-in-time
+  provisioning wrote the `users` row and its `household_members` provenance row
+  as two statements. B4 reads a `users` row *without* provenance as a locally
+  authored account and refuses to adopt it — correctly — but between the two
+  writes a concurrent request for the same `sub` saw exactly that shape,
+  concluded "local account" and returned `null`, surfacing as a 401 on the
+  first-ever request of a member who was being provisioned at that instant.
+  Parallel tool calls from an MCP client are precisely this pattern.
+  - **The two inserts are now one statement** — a CTE whose
+    `household_members` insert selects from the `users` insert's `RETURNING`.
+    One statement is one transaction, so no snapshot falls between them and the
+    half-provisioned state has no existence to observe. The refusal therefore
+    rests on a fact that is settled rather than on a window-dependent read.
+  - **The security property is strengthened, not weakened.** Provenance can
+    only be stamped on a `users` row that same statement created, so a
+    pre-existing local account cannot be adopted even if it appears between the
+    lookup and the insert — data flow rather than a check that could be raced.
+    A new test asserts the strongest case: a local row carrying the very id,
+    email and handle provisioning would synthesise is still refused.
+  - No retry, no sleep, no lock of our own: the losing request's
+    `ON CONFLICT DO NOTHING` waits on the winner's in-flight unique-index entry
+    and reports "did nothing" only once that transaction has committed, so the
+    single follow-up read cannot land mid-write. The hot "already provisioned"
+    path went from two queries to **one** (the account and its provenance are
+    read in a single joined snapshot), so the fix costs no round trip on the
+    path every satellite-authenticated request takes.
+  - Reproduced deterministically before fixing by staggering the racers'
+    arrivals by a round trip or two instead of firing them in one tick: ~50%
+    of iterations produced a `null`, and the new regression test failed on
+    every pre-fix run. Suite: 28 files / 257 tests -> 28 files / 259 tests.
+
 ## [0.3.0] - 2026-08-05
 
 ### Added

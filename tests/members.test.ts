@@ -112,6 +112,38 @@ describe('just-in-time member provisioning', () => {
     expect((await db.select().from(householdMembers)).length).toBe(1);
   });
 
+  it('never denies a member whose first requests arrive while provisioning is in flight', async () => {
+    // The simultaneous burst above misses the interesting interleaving: five
+    // calls issued in the same tick all read "unknown" before any of them
+    // writes. The failure this guards against needs a request to arrive a
+    // round trip or two INTO another one's provisioning — which is exactly
+    // what an MCP client issuing parallel tool calls produces, and what the
+    // staggered arrivals below reproduce. While the account row and its
+    // `household_members` provenance row were two statements, the late
+    // arrivals saw a `users` row with no provenance, read it as a locally
+    // authored account and returned null (a 401 on a member's first-ever
+    // request); at these delays that happened in roughly half of the
+    // iterations. It is one statement now, so there is no such state to see.
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const arrivalsMs = [0, 0.8, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.5, 3];
+
+    for (let i = 0; i < 20; i++) {
+      const sub = randomUUID();
+      const results = await Promise.all(
+        arrivalsMs.map(async (delay) => {
+          if (delay > 0) await sleep(delay);
+          return provisionMember(sub, 'adult');
+        }),
+      );
+
+      expect(results).toEqual(arrivalsMs.map(() => sub));
+      expect((await db.select().from(users).where(eq(users.id, sub))).length).toBe(1);
+      expect(
+        (await db.select().from(householdMembers).where(eq(householdMembers.userId, sub))).length,
+      ).toBe(1);
+    }
+  }, 60_000);
+
   it('takes the role from the token and follows it when Heorth changes it', async () => {
     const key = await makeSigningKey('sat-a');
     const satellite = await satelliteApp(fakeJwksFetch(jwksBody([key])));
@@ -163,6 +195,30 @@ describe('just-in-time member provisioning', () => {
     const [row] = await db.select().from(users).where(eq(users.id, admin.id));
     expect(row!.email).toBe(ADMIN_EMAIL);
     expect(await isHouseholdMember(admin.id)).toBe(false);
+  });
+
+  it('refuses a users row with no provenance even when it looks provisioned', async () => {
+    // The strongest form of B4's refusal, and the one the atomicity fix must
+    // not weaken: a local row carrying the very id, email and handle
+    // provisioning would have synthesised — indistinguishable, column for
+    // column, from the half-written state the two-statement version could
+    // leave behind. It has no `household_members` row, so it is a local
+    // account, and provisioning must refuse it rather than adopt it.
+    const sub = randomUUID();
+    await db.insert(users).values({
+      id: sub,
+      email: memberEmail(sub),
+      handle: memberHandle(sub),
+      passwordHash: 'locally-authored',
+      role: 'adult',
+    });
+
+    expect(await provisionMember(sub, 'adult')).toBeNull();
+    expect(await isHouseholdMember(sub)).toBe(false);
+    // ...and nothing was written to claim it.
+    expect((await db.select().from(householdMembers)).length).toBe(0);
+    const [row] = await db.select().from(users).where(eq(users.id, sub));
+    expect(row!.passwordHash).toBe('locally-authored');
   });
 });
 
