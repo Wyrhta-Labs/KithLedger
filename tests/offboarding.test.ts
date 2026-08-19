@@ -16,6 +16,7 @@ import {
   MEMBER_C_ID,
   ensureLocalAdmin,
   ensureMember,
+  expectDbRejection,
   headersFor,
   keyHeadersOfKind,
 } from './helpers.js';
@@ -189,9 +190,7 @@ describe('reassign', () => {
     const { priv, shared, open, theirs } = await seedDepartingMember();
 
     // The forcing function, before: RESTRICT refuses the delete outright.
-    await expect(db.delete(users).where(eq(users.id, MEMBER_A_ID))).rejects.toThrow(
-      /owner_id/,
-    );
+    await expectDbRejection(db.delete(users).where(eq(users.id, MEMBER_A_ID)), /owner_id/);
 
     const res = await offboard(LOCAL_ADMIN_ID, MEMBER_A_ID, {
       ownerOnlyItems: 'reassign',

@@ -108,3 +108,51 @@ export async function keyHeadersOfKind(
     'Content-Type': 'application/json',
   };
 }
+
+/**
+ * Assert that a Drizzle statement is rejected BY THE DATABASE, naming the
+ * constraint that did it.
+ *
+ * Plain `.rejects.toThrow(/constraint_name/)` used to work because drizzle
+ * re-threw the postgres.js error itself. From drizzle-orm 0.44 on, every driver
+ * error is wrapped in a `DrizzleQueryError` whose own message is only
+ * `Failed query: <sql>` — the constraint name lives on `cause.message`. Matching
+ * the top-level message therefore matches nothing, and relaxing the assertion to
+ * a bare `.rejects.toThrow()` would pass for ANY error, including a typo in the
+ * test's own SQL. So walk the cause chain and require the pattern somewhere in
+ * it: strictly no weaker than before, and it additionally pins the wrapper shape.
+ */
+export async function expectDbRejection(
+  statement: PromiseLike<unknown>,
+  pattern: RegExp,
+): Promise<void> {
+  let thrown: unknown;
+  let threw = false;
+  try {
+    await statement;
+  } catch (e: unknown) {
+    threw = true;
+    thrown = e;
+  }
+  if (!threw) {
+    throw new Error(`Expected the database to reject the statement (${pattern}), but it succeeded.`);
+  }
+
+  const messages: string[] = [];
+  for (let current: unknown = thrown, depth = 0; depth < 10; depth++) {
+    if (typeof current !== 'object' || current === null) break;
+    const message = (current as { message?: unknown }).message;
+    if (typeof message === 'string') messages.push(message);
+    if (!('cause' in current)) break;
+    current = (current as { cause: unknown }).cause;
+  }
+
+  if (!messages.some((m) => pattern.test(m))) {
+    throw new Error(
+      [
+        `Expected ${pattern} somewhere in the rejection's cause chain, but saw:`,
+        ...messages.map((m, i) => `  [${i}] ${m}`),
+      ].join('\n'),
+    );
+  }
+}

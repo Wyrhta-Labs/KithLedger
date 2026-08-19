@@ -16,6 +16,7 @@ import {
   DEFAULT_VISIBILITY,
 } from '../src/db/schema/index.js';
 import type { Visibility } from '../src/db/schema/index.js';
+import { expectDbRejection } from './helpers.js';
 
 /**
  * Per-member access control, SCHEMA ONLY (task B5, ADR 0004 §1 + §4).
@@ -137,7 +138,7 @@ describe('visibility is a 3-state property of every node and every edge', () => 
       },
     ],
   ] as const)('rejects a fourth value on %s', async (_table, constraint, insert) => {
-    await expect(insert()).rejects.toThrow(new RegExp(constraint));
+    await expectDbRejection(insert(), new RegExp(constraint));
   });
 
   it('defaults every table to household on create (ADR 0004 §4)', async () => {
@@ -201,11 +202,12 @@ describe('owner_id', () => {
     // TypeScript layer already refuses this. What has to be proven is that the
     // database refuses it too — an MCP tool, a migration or a psql session
     // walks straight past the type.
-    await expect(db.execute(await statement())).rejects.toThrow(/owner_id/);
+    await expectDbRejection(db.execute(await statement()), /owner_id/);
   });
 
   it('rejects an owner that is not a user', async () => {
-    await expect(db.insert(people).values({ name: 'Nobody', ownerId: randomUUID() })).rejects.toThrow(
+    await expectDbRejection(
+      db.insert(people).values({ name: 'Nobody', ownerId: randomUUID() }),
       /people_owner_id_users_id_fk/,
     );
   });
@@ -222,7 +224,8 @@ describe('owner_id', () => {
     // RESTRICT, not CASCADE: offboarding (B9) must reassign or delete the
     // member's items as an explicit, one-time decision. A cascade would
     // destroy exactly the data that flow exists to decide about.
-    await expect(db.delete(users).where(eq(users.id, owner.id))).rejects.toThrow(
+    await expectDbRejection(
+      db.delete(users).where(eq(users.id, owner.id)),
       /people_owner_id_users_id_fk/,
     );
   });
@@ -238,18 +241,20 @@ describe('owner_id', () => {
 describe('share sets', () => {
   it('rejects a member id that is not a user', async () => {
     const person = await makePerson();
-    await expect(
+    await expectDbRejection(
       db.insert(personShares).values({ personId: person.id, memberId: randomUUID() }),
-    ).rejects.toThrow(/person_shares_member_id_users_id_fk/);
+      /person_shares_member_id_users_id_fk/,
+    );
   });
 
   it('rejects a duplicate grant for the same (entity, member)', async () => {
     const member = await makeUser();
     const person = await makePerson();
     await db.insert(personShares).values({ personId: person.id, memberId: member.id });
-    await expect(
+    await expectDbRejection(
       db.insert(personShares).values({ personId: person.id, memberId: member.id }),
-    ).rejects.toThrow(/person_shares_person_id_member_id_pk/);
+      /person_shares_person_id_member_id_pk/,
+    );
   });
 
   it('holds a subset of members for one entity ("spouse but not the kids")', async () => {

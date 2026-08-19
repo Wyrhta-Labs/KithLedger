@@ -28,21 +28,31 @@
     "docker:reset": "docker compose down -v && docker compose up -d"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.7",
-    "@wyrhta/core": "^0.3.1",
-    "drizzle-orm": "^0.39.3",
-    "hono": "^4.7.4",
+    "@hono/node-server": "^1.19.15",
+    "@wyrhta/core": "^0.4.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.34",
     "postgres": "^3.4.5",
     "zod": "^3.24.2"
+  },
+  "comment:overrides": "@esbuild-kit/* is deprecated (merged into tsx) but drizzle-kit 0.31.x still depends on it, and @esbuild-kit/core-utils hard-pins esbuild ~0.18.20 — vulnerable to GHSA-67mh-4wv8-2f99. core-utils only uses esbuild transform(), which is unchanged across 0.18 -> 0.28, so forcing the patched line is safe. Drop this override once drizzle-kit 1.x (which removes @esbuild-kit/*) is stable.",
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.28.2"
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.13.10",
-    "@vitest/coverage-v8": "^3.0.8",
+    "@vitest/coverage-v8": "^3.2.6",
     "concurrently": "^9.2.1",
-    "drizzle-kit": "^0.30.4",
-    "tsx": "^4.19.3",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.12",
     "typescript": "^5.8.2",
-    "vitest": "^3.0.8"
+    "vitest": "^3.2.6"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.25.12": true
   }
 }

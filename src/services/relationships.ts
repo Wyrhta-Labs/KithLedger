@@ -1,6 +1,12 @@
 import { db } from '../db/index.js';
 import { relationships, people, type Relationship } from '../db/schema/index.js';
 import { eq, or, and, sql, inArray, type SQL } from 'drizzle-orm';
+// Since drizzle-orm >= 0.44 the postgres.js error — and its `code` — arrives
+// wrapped in a `DrizzleQueryError`, on `cause`, so reading `code` off the
+// top-level error no longer sees a UNIQUE violation at all. Core's helper walks
+// the cause chain; importing it keeps ONE such rule in the estate rather than a
+// second copy here that can drift out of step with the next driver change.
+import { isUniqueViolation } from '@wyrhta/core/identity';
 import type { CreateRelationshipInput, UpdateRelationshipInput, ListRelationshipsQuery } from '../validators/relationships.js';
 import { personVisible } from './people.js';
 import {
@@ -92,12 +98,7 @@ export async function createRelationship(scope: Scope, input: CreateRelationship
       return row;
     });
   } catch (error: unknown) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code: string }).code === '23505'
-    ) {
+    if (isUniqueViolation(error)) {
       throw new Error('RELATIONSHIP_EXISTS');
     }
     throw error;
