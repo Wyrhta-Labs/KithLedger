@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
+import { baseEnvSchema, emptyToUndefined, parseEnvOrExit } from '@wyrhta/core/config';
 
 // Load .env from the working directory for local dev (`npm run dev` etc.).
 // Never overrides variables already present in the environment — exported
@@ -16,23 +17,16 @@ try {
   // no .env file — rely on the real environment (CI, docker, production)
 }
 
-/** Treat an empty string as "not provided" (undefined), then apply `inner`. */
-function emptyToUndefined<T extends z.ZodTypeAny>(inner: T) {
-  return z.preprocess((v) => (v === '' ? undefined : v), inner.optional());
-}
-
 /**
  * The schema, exported so tests can exercise the optional groups without
  * re-importing this module (parsing here happens once, at import time).
  */
-export const envSchema = z.object({
-  DATABASE_URL: z.string().url(),
+export const envSchema = baseEnvSchema.extend({
+  // Required here, unlike the core base where it is optional: KithLedger
+  // signs its own HS256 tokens. `extend()` replaces the key, so this wins.
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters for HS256 security'),
   ADMIN_PASSWORD: z.string().min(1),
   API_PORT: z.coerce.number().int().positive().default(3000),
-  JWT_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
-  CORS_ORIGIN: z.string().default('*'),
-  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
   // Satellite identity — verifying Heorth-issued member tokens (B1d, ADR 0009).
   //
   // Heorth is the household's identity provider. It SIGNS short-lived,
@@ -81,13 +75,7 @@ export const envSchema = z.object({
   }
 });
 
-const parsed = envSchema.safeParse(process.env);
-
-if (!parsed.success) {
-  console.error('Invalid environment variables:');
-  console.error(parsed.error.flatten().fieldErrors);
-  process.exit(1);
-}
+const parsed = parseEnvOrExit(envSchema);
 
 /** The verification side of ADR 0009, or `null` when unconfigured. */
 export interface SatelliteAuthConfig {
@@ -109,16 +97,16 @@ function satelliteAuthConfig(env: z.infer<typeof envSchema>): SatelliteAuthConfi
 }
 
 export const config = {
-  databaseUrl: parsed.data.DATABASE_URL,
-  jwtSecret: parsed.data.JWT_SECRET,
-  adminPassword: parsed.data.ADMIN_PASSWORD,
-  port: parsed.data.API_PORT,
-  jwtTtlSeconds: parsed.data.JWT_TTL_SECONDS,
-  corsOrigin: parsed.data.CORS_ORIGIN,
-  dbPoolMax: parsed.data.DB_POOL_MAX,
+  databaseUrl: parsed.DATABASE_URL,
+  jwtSecret: parsed.JWT_SECRET,
+  adminPassword: parsed.ADMIN_PASSWORD,
+  port: parsed.API_PORT,
+  jwtTtlSeconds: parsed.JWT_TTL_SECONDS,
+  corsOrigin: parsed.CORS_ORIGIN,
+  dbPoolMax: parsed.DB_POOL_MAX,
   /**
    * Satellite-token verification, or `null` when the group is absent (the
    * default) — in which case nothing about the auth path changes.
    */
-  satelliteAuth: satelliteAuthConfig(parsed.data),
+  satelliteAuth: satelliteAuthConfig(parsed),
 } as const;
