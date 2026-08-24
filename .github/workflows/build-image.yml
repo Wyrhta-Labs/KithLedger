@@ -48,7 +48,7 @@ jobs:
           # Node the *actions themselves* run on (node24, set by the action
           # majors pinned above); bumping this without the Dockerfile would mean
           # CI validated against a runtime the image never uses.
-          node-version: 22
+          node-version: 24
 
       - name: Install backend dependencies
         run: npm ci
