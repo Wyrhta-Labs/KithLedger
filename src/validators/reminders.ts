@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isPositiveDuration } from '@wyrhta/core/lib';
 import { visibilityFields } from './visibility.js';
 
 const REMINDER_STATUSES = ['pending', 'done', 'snoozed', 'dismissed'] as const;
@@ -10,7 +11,15 @@ export const createReminderSchema = z.object({
   dueAt: z.string().datetime(),
   title: z.string().min(1),
   notes: z.string().optional().nullable(),
-  recurrence: z.string().optional().nullable(), // ISO 8601 duration
+  // An ISO 8601 duration, never an RRULE. Validated on the way IN because the
+  // completion path can only degrade gracefully, not repair: an accepted
+  // `FREQ=WEEKLY;BYDAY=TU` silently stops recurring, and a `P0D` would mint a
+  // successor due at the same instant. `isPositiveDuration` rejects both.
+  recurrence: z
+    .string()
+    .refine(isPositiveDuration, 'recurrence must be an advancing ISO 8601 duration, e.g. P1M')
+    .optional()
+    .nullable(),
   kind: z.enum(REMINDER_KINDS).optional().default('generic'),
   /** Days before the birthday; only meaningful when kind='birthday'. */
   leadDays: z.number().int().min(0).max(365).optional().nullable(),

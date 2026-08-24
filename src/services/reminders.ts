@@ -1,4 +1,5 @@
 import { db } from '../db/index.js';
+import { addDuration, isPositiveDuration } from '@wyrhta/core/lib';
 import { reminders, people, reminderShares } from '../db/schema/index.js';
 import { eq, and, lte, inArray, sql } from 'drizzle-orm';
 import type { CreateReminderInput, UpdateReminderInput, ListRemindersQuery } from '../validators/reminders.js';
@@ -15,24 +16,6 @@ import {
   visibleTo,
   type Scope,
 } from './scope.js';
-
-/** Parse an ISO 8601 duration like P3M and add it to a date */
-function addDuration(date: Date, duration: string): Date {
-  const result = new Date(date);
-  // Simple parser: PnYnMnDTnHnMnS
-  const match = duration.match(
-    /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/
-  );
-  if (!match) throw new Error(`Invalid ISO 8601 duration: ${duration}`);
-  const [, years, months, days, hours, minutes, seconds] = match.map(Number);
-  if (years) result.setFullYear(result.getFullYear() + years);
-  if (months) result.setMonth(result.getMonth() + months);
-  if (days) result.setDate(result.getDate() + days);
-  if (hours) result.setHours(result.getHours() + hours);
-  if (minutes) result.setMinutes(result.getMinutes() + minutes);
-  if (seconds) result.setSeconds(result.getSeconds() + seconds);
-  return result;
-}
 
 const MS_PER_DAY = 86_400_000;
 
@@ -230,7 +213,12 @@ export async function completeReminder(scope: Scope, id: string) {
     if (!updated) return null;
 
     let next = null;
-    if (reminder.recurrence) {
+    // A recurrence that does not ADVANCE the due date is not a recurrence: it
+    // would mint a successor due at the same instant, which the next completion
+    // repeats forever. Rows written before the validator rejected such values
+    // are still in the database, so degrade to "no successor" here rather than
+    // letting addDuration throw and turn a completion into a 500.
+    if (reminder.recurrence && isPositiveDuration(reminder.recurrence)) {
       let nextDueAt: Date;
       if (reminder.kind === 'birthday' && reminder.leadDays !== null) {
         // Recompute from the person's current birthday. Falls back to the
