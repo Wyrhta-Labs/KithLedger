@@ -46,7 +46,7 @@ function getIp(c: Parameters<ReturnType<typeof rateLimit>>[0]): string {
   );
 }
 
-authRouter.post('/token', rateLimit(), async (c) => {
+authRouter.post('/token', rateLimit({ resolveIp: getIp }), async (c) => {
   const body = tokenSchema.safeParse(await c.req.json());
   if (!body.success) {
     return validationError(c, body.error);
