@@ -84,7 +84,7 @@ export function asymmetricJwtHeader(token: string): { alg: string; kid?: string 
   if (!token.startsWith('eyJ')) return null;
   let header: { alg?: unknown; kid?: unknown };
   try {
-    header = decode(token).header as { alg?: unknown; kid?: unknown };
+    header = decode(token).header;
   } catch {
     return null;
   }
@@ -140,7 +140,7 @@ export function withSatelliteAuth(
       keyPrefix: deps.keyPrefix,
       // A satellite guard never resolves API keys: `withSatelliteAuth` only
       // routes asymmetric JWTs here, and `requireJwt` rejects anything else.
-      resolveApiKey: async () => null,
+      resolveApiKey: () => Promise.resolve(null),
     });
 
     let denied: Response | undefined;

@@ -99,7 +99,9 @@ export async function createRelationship(scope: Scope, input: CreateRelationship
     });
   } catch (error: unknown) {
     if (isUniqueViolation(error)) {
-      throw new Error('RELATIONSHIP_EXISTS');
+      // Keep the driver error on `cause`: the domain code is what callers
+      // match on, but the SQLSTATE and constraint name are what a log needs.
+      throw new Error('RELATIONSHIP_EXISTS', { cause: error });
     }
     throw error;
   }
@@ -275,7 +277,7 @@ export async function getPersonGraph(scope: Scope, personId: string, depth: numb
               or(
                 eq(relationships.fromPersonId, personId),
                 and(eq(relationships.toPersonId, personId), eq(relationships.isMutual, true)),
-              )!,
+              ),
               edgeVisible(scope, 'relationships'),
             ),
           )

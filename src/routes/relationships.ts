@@ -3,7 +3,7 @@ import type { Context } from 'hono';
 import { requireAuth, requireDataAccess } from '../identity.js';
 import * as service from '../services/relationships.js';
 import { scopeFor, NOT_OWNER } from '../services/scope.js';
-import { createRelationshipSchema, updateRelationshipSchema, listRelationshipsQuerySchema, graphQuerySchema } from '../validators/relationships.js';
+import { createRelationshipSchema, updateRelationshipSchema, listRelationshipsQuerySchema } from '../validators/relationships.js';
 import { ok, err } from '@wyrhta/core/http';
 import { validationError } from '../lib/validation.js';
 
