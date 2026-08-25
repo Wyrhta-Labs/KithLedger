@@ -14,7 +14,7 @@ cp .env.example .env
 npm run docker:up
 ```
 
-The API starts at `http://localhost:4002`. Migrations run automatically on startup.
+The API starts at `http://localhost:14002`. Migrations run automatically on startup.
 
 ### Local development
 
@@ -53,7 +53,7 @@ The two are alternatives, not layers. Do not run both against the same database.
 ### Get a JWT
 
 ```bash
-curl -X POST http://localhost:4002/api/v1/auth/token \
+curl -X POST http://localhost:14002/api/v1/auth/token \
   -H 'Content-Type: application/json' \
   -d '{"password": "your-admin-password"}'
 ```
@@ -61,7 +61,7 @@ curl -X POST http://localhost:4002/api/v1/auth/token \
 ### Create an API key
 
 ```bash
-curl -X POST http://localhost:4002/api/v1/auth/keys \
+curl -X POST http://localhost:14002/api/v1/auth/keys \
   -H 'Authorization: Bearer <jwt>' \
   -H 'Content-Type: application/json' \
   -d '{"name": "my-agent"}'
@@ -83,7 +83,7 @@ behaves exactly as before and satellite tokens are simply not accepted:
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `HEORTH_JWKS_URL` | with `SATELLITE_AUDIENCE` | Heorth's public key set, e.g. `http://heorth:4000/.well-known/jwks.json` |
+| `HEORTH_JWKS_URL` | with `SATELLITE_AUDIENCE` | Heorth's public key set, e.g. `http://localhost:14000/.well-known/jwks.json` for local native dev or `http://heorth:3000/.well-known/jwks.json` inside Compose |
 | `SATELLITE_AUDIENCE` | with `HEORTH_JWKS_URL` | This service's own audience name — the only `aud` accepted (e.g. `kithledger`) |
 | `HEORTH_ISSUER` | no | Expected `iss`; defaults to `heorth`. Setting it without the group is a startup error |
 

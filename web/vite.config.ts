@@ -11,10 +11,10 @@ export default defineConfig({
     },
   },
   server: {
-    // Dev port allocation: Heorth 4000/5173, Feoh 4001, KithLedger 4002/5174
+    // Dev port allocation: Heorth 14000/5173, retired Feoh slot 14001, KithLedger 14002/5174
     port: 5174,
     proxy: {
-      '/api': 'http://localhost:4002',
+      '/api': 'http://localhost:14002',
     },
   },
 });
