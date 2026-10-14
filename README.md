@@ -2,6 +2,21 @@
 
 *Kith* — an Old English word for one's circle of friends, acquaintances, and family — is the foundation of KithLedger: an API-first database for tracking and nurturing personal relationships. KithLedger provides a structured **REST** API for web interfaces and AI agents alike, keeping your entire social graph programmatically accessible. A ledger for the people who matter.
 
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/dashboard.png" alt="KithLedger dashboard: upcoming reminders, recent interactions, upcoming birthdays"></td>
+    <td width="50%"><img src="docs/images/person.png" alt="A person in KithLedger: contact details, a note on how they like to be reached, and a log of calls"></td>
+  </tr>
+  <tr>
+    <td><b>Dashboard</b> — who you owe a thank-you, whose birthday is coming, and when you last spoke to whom.</td>
+    <td><b>A person</b> — the small things worth remembering ("prefers a phone call"), and every conversation logged against them.</td>
+  </tr>
+</table>
+
+<sub>Screenshots from the seeded demo household (<code>deploy/demo-up.sh</code> in the
+<a href="https://github.com/Wyrhta-Labs/wyrhta">umbrella repo</a>) — every name in them is made up.
+The web UI is a thin client; everything it shows is available over the REST API below.</sub>
+
 ---
 
 ## Quick Start
