@@ -101,7 +101,7 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
     setShowCreate(false);
   };
 
-  if (isLoading) return <div className="py-8 text-center text-gray-500">Loading…</div>;
+  if (isLoading) return <div className="py-8 text-center text-muted">Loading…</div>;
 
   return (
     <div className="space-y-4">
@@ -112,7 +112,7 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
       </div>
 
       {sorted.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No reminders.</div>
+        <div className="text-center py-8 text-muted">No reminders.</div>
       ) : (
         <div className="space-y-2">
           {sorted.map((reminder) => {
@@ -122,14 +122,14 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
               <div
                 key={reminder.id}
                 className={cn(
-                  'bg-white rounded-lg border p-4',
-                  overdue ? 'border-red-300 bg-red-50' : today ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'
+                  'bg-surface rounded-lg border p-4',
+                  overdue ? 'border-danger-border bg-danger-bg' : today ? 'border-warning-border bg-warning-bg' : 'border-line'
                 )}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn('font-medium text-sm', overdue && 'text-red-800', today && 'text-yellow-800')}>
+                      <span className={cn('font-medium text-sm', overdue && 'text-danger', today && 'text-warning')}>
                         {reminder.title}
                       </span>
                       <Badge variant={(statusBadge[reminder.status] as 'secondary' | 'success' | 'warning' | 'outline') ?? 'outline'}>
@@ -139,23 +139,23 @@ export default function ReminderList({ personId, statusFilter }: ReminderListPro
                       {today && <Badge variant="warning">Due Today</Badge>}
                       {reminder.recurrence && <Badge variant="outline">Recurring</Badge>}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">{formatDateTime(reminder.dueAt)}</p>
-                    {reminder.notes && <p className="text-sm text-gray-600 mt-1">{reminder.notes}</p>}
+                    <p className="text-xs text-muted mt-1">{formatDateTime(reminder.dueAt)}</p>
+                    {reminder.notes && <p className="text-sm text-muted mt-1">{reminder.notes}</p>}
                   </div>
                   {reminder.status === 'pending' || reminder.status === 'snoozed' ? (
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" title="Complete" onClick={() => handleComplete(reminder.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-success" title="Complete" onClick={() => handleComplete(reminder.id)}>
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" title="Snooze" onClick={() => { setSnoozeId(reminder.id); setSnoozeUntil(''); }}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" title="Snooze" onClick={() => { setSnoozeId(reminder.id); setSnoozeUntil(''); }}>
                         <Clock className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500" title="Dismiss" onClick={() => handleDismiss(reminder.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted" title="Dismiss" onClick={() => handleDismiss(reminder.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(reminder.id)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-danger" onClick={() => handleDelete(reminder.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}

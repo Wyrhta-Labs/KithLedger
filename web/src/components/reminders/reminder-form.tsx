@@ -96,13 +96,13 @@ export default function ReminderForm({
       <div className="space-y-1">
         <Label htmlFor="title">Title *</Label>
         <Input id="title" {...register('title')} placeholder="Call mom, Send birthday card…" />
-        {errors.title && <p className="text-xs text-red-600">{errors.title.message}</p>}
+        {errors.title && <p className="text-xs text-danger">{errors.title.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <Label htmlFor="dueAt">Due Date *</Label>
           <Input id="dueAt" type="datetime-local" {...register('dueAt')} />
-          {errors.dueAt && <p className="text-xs text-red-600">{errors.dueAt.message}</p>}
+          {errors.dueAt && <p className="text-xs text-danger">{errors.dueAt.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="recurrence">Recurrence</Label>

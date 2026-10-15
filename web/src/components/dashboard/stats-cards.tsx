@@ -25,29 +25,29 @@ export default function StatsCards() {
       label: 'Total People',
       value: peopleData?.meta?.total ?? '—',
       icon: Users,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
+      color: 'text-primary',
+      bg: 'bg-primary-light',
     },
     {
       label: 'Interactions This Month',
       value: interactionsData?.meta?.total ?? '—',
       icon: MessageSquare,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
+      color: 'text-success',
+      bg: 'bg-success-bg',
     },
     {
       label: 'Pending Reminders',
       value: remindersData?.meta?.total ?? '—',
       icon: Bell,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-50',
+      color: 'text-warning',
+      bg: 'bg-warning-bg',
     },
     {
       label: 'Relationships',
       value: relationshipsData?.meta?.total ?? '—',
       icon: TrendingUp,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
+      color: 'text-accent',
+      bg: 'bg-accent-bg',
     },
   ];
 
@@ -59,12 +59,12 @@ export default function StatsCards() {
           <Card key={stat.label}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${stat.bg}`}>
+                <div className={`p-2 rounded-card ${stat.bg}`}>
                   <Icon className={`h-5 w-5 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-900">{String(stat.value)}</p>
-                  <p className="text-xs text-gray-500">{stat.label}</p>
+                  <p className="text-2xl font-bold text-fg">{String(stat.value)}</p>
+                  <p className="text-xs text-muted">{stat.label}</p>
                 </div>
               </div>
             </CardContent>

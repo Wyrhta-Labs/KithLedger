@@ -74,34 +74,34 @@ export default function InteractionsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading…</div>
+        <div className="text-center py-12 text-muted">Loading…</div>
       ) : interactions.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">No interactions found.</div>
+        <div className="text-center py-12 text-muted">No interactions found.</div>
       ) : (
         <div className="space-y-3">
           {interactions.map((i) => {
             const person = getPerson(i.personId);
             return (
-              <div key={i.id} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div key={i.id} className="bg-surface rounded-card border border-line shadow-card p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-gray-900">{person?.name ?? 'Unknown'}</span>
+                      <span className="font-medium text-fg">{person?.name ?? 'Unknown'}</span>
                       <Badge variant="secondary">{interactionTypeLabel(i.type)}</Badge>
                       {i.sentiment && (
                         <Badge variant={sentimentBadgeVariant(i.sentiment)}>
                           {sentimentLabel(i.sentiment)}
                         </Badge>
                       )}
-                      {i.channel && <span className="text-xs text-gray-500">via {i.channel}</span>}
+                      {i.channel && <span className="text-xs text-muted">via {i.channel}</span>}
                     </div>
-                    {i.notes && <p className="text-sm text-gray-600">{i.notes}</p>}
-                    <p className="text-xs text-gray-400">{formatDateTime(i.occurredAt)}</p>
+                    {i.notes && <p className="text-sm text-muted">{i.notes}</p>}
+                    <p className="text-xs text-faint">{formatDateTime(i.occurredAt)}</p>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:text-red-700 shrink-0"
+                    className="text-danger hover:bg-danger-bg shrink-0"
                     onClick={() => handleDelete(i.id)}
                   >
                     Delete
@@ -114,7 +114,7 @@ export default function InteractionsPage() {
       )}
 
       {total > limit && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-sm text-muted">
           <span>Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of {total}</span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>

@@ -29,8 +29,8 @@ export default function PersonDetail({ id }: PersonDetailProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  if (isLoading) return <div className="text-center py-12 text-gray-500">Loading…</div>;
-  if (!data?.data) return <div className="text-center py-12 text-gray-500">Person not found.</div>;
+  if (isLoading) return <div className="text-center py-12 text-muted">Loading…</div>;
+  if (!data?.data) return <div className="text-center py-12 text-muted">Person not found.</div>;
 
   const person = data.data;
 
@@ -66,7 +66,7 @@ export default function PersonDetail({ id }: PersonDetailProps) {
         <Button variant="ghost" size="icon" onClick={() => navigate({ to: '/people' })}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-xl font-semibold text-gray-900 flex-1">{person.name}</h2>
+        <h2 className="text-xl font-semibold text-fg flex-1">{person.name}</h2>
         <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
           <Edit2 className="h-4 w-4" /> Edit
         </Button>
@@ -75,7 +75,7 @@ export default function PersonDetail({ id }: PersonDetailProps) {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 flex items-start gap-6">
+      <div className="bg-surface rounded-card border border-line shadow-card p-6 flex items-start gap-6">
         <Avatar className="h-16 w-16">
           {person.avatarUrl && isSafeImageUrl(person.avatarUrl) ? (
             <img
@@ -89,8 +89,8 @@ export default function PersonDetail({ id }: PersonDetailProps) {
           )}
         </Avatar>
         <div className="flex-1 space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">{person.name}</h3>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+          <h3 className="text-lg font-semibold text-fg">{person.name}</h3>
+          <div className="flex flex-wrap gap-4 text-sm text-muted">
             {person.email && (
               <span className="flex items-center gap-1">
                 <Mail className="h-3.5 w-3.5" />{person.email}
@@ -109,15 +109,15 @@ export default function PersonDetail({ id }: PersonDetailProps) {
           </div>
           {person.tags.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
-              <Tag className="h-3.5 w-3.5 text-gray-400" />
+              <Tag className="h-3.5 w-3.5 text-faint" />
               {person.tags.map((tag) => (
                 <Badge key={tag} variant="secondary">{tag}</Badge>
               ))}
             </div>
           )}
-          {person.notes && <p className="text-sm text-gray-600 mt-2">{person.notes}</p>}
+          {person.notes && <p className="text-sm text-muted mt-2">{person.notes}</p>}
         </div>
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-faint">
           Added {formatDate(person.createdAt)}
         </div>
       </div>

@@ -55,7 +55,7 @@ export default function InteractionList({ personId }: InteractionListProps) {
     toast('Interaction deleted', 'success');
   };
 
-  if (isLoading) return <div className="py-8 text-center text-gray-500">Loading…</div>;
+  if (isLoading) return <div className="py-8 text-center text-muted">Loading…</div>;
 
   return (
     <div className="space-y-4">
@@ -66,14 +66,14 @@ export default function InteractionList({ personId }: InteractionListProps) {
       </div>
 
       {interactions.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No interactions yet.</div>
+        <div className="text-center py-8 text-muted">No interactions yet.</div>
       ) : (
         <div className="space-y-2">
           {interactions.map((interaction) => (
             <div
               key={interaction.id}
               className={cn(
-                'bg-white rounded-lg border border-gray-200 border-l-4 p-4',
+                'bg-surface rounded-lg border border-line border-l-4 p-4',
                 sentimentColors[interaction.sentiment ?? 'neutral'] ?? 'border-l-gray-300'
               )}
             >
@@ -87,19 +87,19 @@ export default function InteractionList({ personId }: InteractionListProps) {
                       </Badge>
                     )}
                     {interaction.channel && (
-                      <span className="text-xs text-gray-500">via {interaction.channel}</span>
+                      <span className="text-xs text-muted">via {interaction.channel}</span>
                     )}
-                    <span className="text-xs text-gray-400 ml-auto">{formatDateTime(interaction.occurredAt)}</span>
+                    <span className="text-xs text-faint ml-auto">{formatDateTime(interaction.occurredAt)}</span>
                   </div>
                   {interaction.notes && (
-                    <p className="text-sm text-gray-600 mt-2">{interaction.notes}</p>
+                    <p className="text-sm text-muted mt-2">{interaction.notes}</p>
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditInteraction(interaction)}>
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(interaction.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-danger" onClick={() => handleDelete(interaction.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>

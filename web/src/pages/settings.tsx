@@ -56,7 +56,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">API Keys</CardTitle>
+            <CardTitle>API Keys</CardTitle>
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" /> New Key
             </Button>
@@ -64,9 +64,9 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-sm text-gray-500 py-4 text-center">Loading…</div>
+            <div className="text-sm text-muted py-4 text-center">Loading…</div>
           ) : apiKeys.length === 0 ? (
-            <div className="text-sm text-gray-500 py-4 text-center">No API keys yet.</div>
+            <div className="text-sm text-muted py-4 text-center">No API keys yet.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -83,17 +83,17 @@ export default function SettingsPage() {
                   <TableRow key={key.id}>
                     <TableCell className="font-medium">{key.name}</TableCell>
                     <TableCell>
-                      <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{key.keyPrefix}…</code>
+                      <code className="text-xs bg-surface-3 px-1.5 py-0.5 rounded">{key.keyPrefix}…</code>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-500">{formatDate(key.createdAt)}</TableCell>
-                    <TableCell className="text-sm text-gray-500">
+                    <TableCell className="text-sm text-muted">{formatDate(key.createdAt)}</TableCell>
+                    <TableCell className="text-sm text-muted">
                       {key.lastUsedAt ? formatDate(key.lastUsedAt) : 'Never'}
                     </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-red-500 hover:text-red-700"
+                        className="text-danger hover:bg-danger-bg"
                         onClick={() => handleRevoke(key.id, key.name)}
                         disabled={revokeMutation.isPending}
                       >
@@ -139,21 +139,21 @@ export default function SettingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-green-600" />
+              <Key className="h-5 w-5 text-success" />
               API Key Created
             </DialogTitle>
             <DialogClose onClose={() => setCreatedKey(null)} />
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+            <div className="bg-warning-bg border border-warning-border rounded-lg p-3 text-sm text-warning">
               Copy this key now. You won't be able to see it again.
             </div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 bg-gray-100 px-3 py-2 rounded-lg text-sm font-mono break-all">
+              <code className="flex-1 bg-surface-3 px-3 py-2 rounded-lg text-sm font-mono break-all">
                 {createdKey}
               </code>
               <Button variant="outline" size="icon" onClick={handleCopy}>
-                {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>

@@ -115,13 +115,13 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
       <div className="space-y-1">
         <Label htmlFor="name">Name *</Label>
         <Input id="name" {...register('name')} placeholder="Jane Doe" />
-        {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+        {errors.name && <p className="text-xs text-danger">{errors.name.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
           <Input id="email" type="email" {...register('email')} placeholder="jane@example.com" />
-          {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
+          {errors.email && <p className="text-xs text-danger">{errors.email.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="phone">Phone</Label>
@@ -139,7 +139,7 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
         </div>
       </div>
       {showBirthdayReminder && (
-        <div className="rounded-md border border-purple-100 bg-purple-50 p-3 space-y-3">
+        <div className="rounded-md border border-accent-border bg-accent-bg p-3 space-y-3">
           <div className="flex items-center gap-2">
             <Checkbox id="createBirthdayReminder" {...register('createBirthdayReminder')} />
             <Label htmlFor="createBirthdayReminder" className="cursor-pointer font-normal">
@@ -148,7 +148,7 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
           </div>
           {createBirthdayReminder && (
             <div className="flex items-center gap-2 pl-6">
-              <Label htmlFor="birthdayReminderLeadDays" className="shrink-0 font-normal text-gray-600">
+              <Label htmlFor="birthdayReminderLeadDays" className="shrink-0 font-normal text-muted">
                 Remind me
               </Label>
               <Select
@@ -167,7 +167,7 @@ export default function PersonForm({ person, onSubmit, onCancel, isLoading }: Pe
       <div className="space-y-1">
         <Label htmlFor="avatarUrl">Avatar URL</Label>
         <Input id="avatarUrl" {...register('avatarUrl')} placeholder="https://..." />
-        {errors.avatarUrl && <p className="text-xs text-red-600">{errors.avatarUrl.message}</p>}
+        {errors.avatarUrl && <p className="text-xs text-danger">{errors.avatarUrl.message}</p>}
       </div>
       <div className="space-y-1">
         <Label htmlFor="notes">Notes</Label>

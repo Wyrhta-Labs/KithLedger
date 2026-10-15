@@ -96,14 +96,14 @@ export default function InteractionForm({
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </Select>
-          {errors.personId && <p className="text-xs text-red-600">{errors.personId.message}</p>}
+          {errors.personId && <p className="text-xs text-danger">{errors.personId.message}</p>}
         </div>
       )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <Label htmlFor="occurredAt">Date & Time *</Label>
           <Input id="occurredAt" type="datetime-local" {...register('occurredAt')} />
-          {errors.occurredAt && <p className="text-xs text-red-600">{errors.occurredAt.message}</p>}
+          {errors.occurredAt && <p className="text-xs text-danger">{errors.occurredAt.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="type">Type *</Label>

@@ -20,7 +20,7 @@ export default function GraphPage() {
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-faint pointer-events-none" />
           <Input
             placeholder="Search for a person…"
             value={search}
@@ -41,7 +41,7 @@ export default function GraphPage() {
           </Select>
         )}
         <div className="flex items-center gap-2">
-          <Sliders className="h-4 w-4 text-gray-500" />
+          <Sliders className="h-4 w-4 text-muted" />
           <Select
             value={String(depth)}
             onChange={(e) => setDepth(Number(e.target.value))}
@@ -56,7 +56,7 @@ export default function GraphPage() {
 
       {!selectedPersonId ? (
         <Card>
-          <CardContent className="py-16 text-center text-gray-500">
+          <CardContent className="py-16 text-center text-muted">
             <p>Search for a person and select them to explore their relationship graph.</p>
           </CardContent>
         </Card>

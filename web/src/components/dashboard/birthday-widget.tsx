@@ -42,7 +42,7 @@ export default function BirthdayWidget() {
     // tracked", so the list going empty after adding a reminder does not read
     // as a bug.
     return (
-      <div data-testid="birthday-widget" className="text-sm text-gray-500">
+      <div data-testid="birthday-widget" className="text-sm text-muted">
         {trackedPersonIds.size > 0
           ? `No untracked birthdays in the next ${WINDOW_DAYS} days — the rest have reminders.`
           : `No upcoming birthdays in the next ${WINDOW_DAYS} days.`}
@@ -55,19 +55,19 @@ export default function BirthdayWidget() {
       {upcoming.map(({ person, next }) => (
         <div
           key={person.id}
-          className="flex items-center gap-3 p-3 rounded-lg border border-purple-100 bg-purple-50 text-sm"
+          className="flex items-center gap-3 p-3 rounded-lg border border-accent-border bg-accent-bg text-sm"
         >
-          <Cake className="h-4 w-4 text-purple-500 shrink-0" />
+          <Cake className="h-4 w-4 text-accent shrink-0" />
           <div className="flex-1">
             <Link
               to="/people/$id"
               params={{ id: person.id }}
-              className="font-medium text-gray-900 hover:underline"
+              className="font-medium text-fg hover:underline"
             >
               {person.name}
             </Link>
           </div>
-          <span className="text-xs text-gray-500">{format(next, 'MMM d')}</span>
+          <span className="text-xs text-muted">{format(next, 'MMM d')}</span>
         </div>
       ))}
     </div>

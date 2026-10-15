@@ -29,17 +29,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-2 px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-4">
-            <BookHeart className="h-6 w-6 text-white" />
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-primary rounded-card mb-4">
+            <BookHeart className="h-6 w-6 text-on-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">KithLedger</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to manage your relationships</p>
+          <h1 className="text-2xl font-bold text-fg">KithLedger</h1>
+          <p className="text-sm text-muted mt-1">Sign in to manage your relationships</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="bg-surface rounded-card border border-line shadow-card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="password">Admin Password</Label>
@@ -56,7 +56,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-2.5 text-faint hover:text-fg"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -64,7 +64,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+              <div className="text-sm text-danger bg-danger-bg border border-danger-border rounded-md p-3">
                 {error}
               </div>
             )}

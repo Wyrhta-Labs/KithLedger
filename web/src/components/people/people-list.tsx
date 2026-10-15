@@ -67,7 +67,7 @@ export default function PeopleList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-faint pointer-events-none" />
           <Input
             placeholder="Search people..."
             value={search}
@@ -82,14 +82,14 @@ export default function PeopleList() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading…</div>
+        <div className="text-center py-12 text-muted">Loading…</div>
       ) : people.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-muted">
           {search ? 'No people found matching your search.' : 'No people yet. Add your first person!'}
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="overflow-hidden rounded-card bg-surface shadow-card">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -117,11 +117,11 @@ export default function PeopleList() {
                             <AvatarFallback className="text-xs">{getInitials(person.name)}</AvatarFallback>
                           )}
                         </Avatar>
-                        <span className="font-medium text-gray-900">{person.name}</span>
+                        <span className="font-medium text-fg">{person.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-gray-500">{person.email ?? '—'}</TableCell>
-                    <TableCell className="text-gray-500">{formatBirthday(person.birthday)}</TableCell>
+                    <TableCell className="text-muted">{person.email ?? '—'}</TableCell>
+                    <TableCell className="text-muted">{formatBirthday(person.birthday)}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {person.tags.slice(0, 3).map((tag) => (
@@ -132,7 +132,7 @@ export default function PeopleList() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-gray-500 text-xs">{formatDate(person.createdAt)}</TableCell>
+                    <TableCell className="text-muted text-xs">{formatDate(person.createdAt)}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <Button
@@ -147,7 +147,7 @@ export default function PeopleList() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-red-500 hover:text-red-700"
+                          className="h-7 w-7 text-danger hover:bg-danger-bg"
                           onClick={() => handleDelete(person.id, person.name)}
                           title="Delete"
                         >
@@ -162,7 +162,7 @@ export default function PeopleList() {
           </div>
 
           {total > limit && (
-            <div className="flex items-center justify-between text-sm text-gray-500">
+            <div className="flex items-center justify-between text-sm text-muted">
               <span>Showing {page * limit + 1}–{Math.min((page + 1) * limit, total)} of {total}</span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</Button>

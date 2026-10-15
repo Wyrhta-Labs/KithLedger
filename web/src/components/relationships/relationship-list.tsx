@@ -40,7 +40,7 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
     toast('Relationship deleted', 'success');
   };
 
-  if (isLoading) return <div className="py-8 text-center text-gray-500">Loading…</div>;
+  if (isLoading) return <div className="py-8 text-center text-muted">Loading…</div>;
 
   return (
     <div className="space-y-4">
@@ -51,29 +51,29 @@ export default function RelationshipList({ personId }: RelationshipListProps) {
       </div>
 
       {relationships.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No relationships yet.</div>
+        <div className="text-center py-8 text-muted">No relationships yet.</div>
       ) : (
         <div className="space-y-2">
           {relationships.map((rel) => {
             const fromPerson = getPerson(rel.fromPersonId);
             const toPerson = getPerson(rel.toPersonId);
             return (
-              <div key={rel.id} className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between gap-4">
+              <div key={rel.id} className="bg-surface rounded-lg border border-line p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="font-medium text-sm text-gray-900">{fromPerson?.name ?? rel.fromPersonId}</span>
+                  <span className="font-medium text-sm text-fg">{fromPerson?.name ?? rel.fromPersonId}</span>
                   {rel.isMutual ? (
-                    <ArrowLeftRight className="h-4 w-4 text-gray-400" />
+                    <ArrowLeftRight className="h-4 w-4 text-faint" />
                   ) : (
-                    <ArrowRight className="h-4 w-4 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 text-faint" />
                   )}
-                  <span className="font-medium text-sm text-gray-900">{toPerson?.name ?? rel.toPersonId}</span>
+                  <span className="font-medium text-sm text-fg">{toPerson?.name ?? rel.toPersonId}</span>
                   <Badge variant="secondary">{relationshipTypeLabel(rel.type)}</Badge>
-                  {rel.label && <span className="text-xs text-gray-500 italic">"{rel.label}"</span>}
+                  {rel.label && <span className="text-xs text-muted italic">"{rel.label}"</span>}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-red-500 shrink-0"
+                  className="h-7 w-7 text-danger shrink-0"
                   onClick={() => handleDelete(rel.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

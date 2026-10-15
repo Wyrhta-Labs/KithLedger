@@ -13,8 +13,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Upcoming Reminders</CardTitle>
+            <CardHeader>
+              <CardTitle>Upcoming Reminders</CardTitle>
             </CardHeader>
             <CardContent>
               <UpcomingReminders />
@@ -23,8 +23,8 @@ export default function DashboardPage() {
         </div>
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Recent Interactions</CardTitle>
+            <CardHeader>
+              <CardTitle>Recent Interactions</CardTitle>
             </CardHeader>
             <CardContent>
               <RecentInteractions />
@@ -33,8 +33,8 @@ export default function DashboardPage() {
         </div>
         <div className="lg:col-span-1">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Upcoming Birthdays</CardTitle>
+            <CardHeader>
+              <CardTitle>Upcoming Birthdays</CardTitle>
             </CardHeader>
             <CardContent>
               <BirthdayWidget />
@@ -44,8 +44,8 @@ export default function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Quick Actions</CardTitle>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <QuickActions />

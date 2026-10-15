@@ -3,13 +3,22 @@ import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from '@tanstack/react-router';
 import { usePersonGraph } from '@/hooks/use-people';
 
-const TYPE_COLORS: Record<string, string> = {
-  friend: '#3b82f6',
-  family: '#10b981',
-  colleague: '#f59e0b',
-  acquaintance: '#8b5cf6',
-  other: '#6b7280',
+/** Relationship type → theme token. The canvas cannot read CSS variables,
+ *  so `resolveTokens` turns them into colours once per render. */
+const TYPE_TOKENS: Record<string, string> = {
+  friend: '--color-info',
+  family: '--color-success',
+  colleague: '--color-warning',
+  acquaintance: '--color-accent',
+  other: '--color-muted',
 };
+
+function resolveTokens() {
+  const css = getComputedStyle(document.documentElement);
+  const read = (name: string) => css.getPropertyValue(name).trim();
+  const types = Object.fromEntries(Object.entries(TYPE_TOKENS).map(([type, token]) => [type, read(token)]));
+  return { types, root: read('--color-primary'), node: read('--color-primary'), other: read('--color-muted'), label: read('--color-fg') };
+}
 
 interface GraphViewProps {
   personId: string;
@@ -30,28 +39,29 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
     [navigate, personId]
   );
 
-  if (isLoading) return <div className="py-8 text-center text-gray-500">Loading graph…</div>;
-  if (!data?.data) return <div className="py-8 text-center text-gray-500">No graph data.</div>;
+  if (isLoading) return <div className="py-8 text-center text-muted">Loading graph…</div>;
+  if (!data?.data) return <div className="py-8 text-center text-muted">No graph data.</div>;
 
   const { nodes, edges } = data.data;
+  const palette = resolveTokens();
 
   const graphData = {
     nodes: nodes.map((n) => ({
       id: n.id,
       name: n.name,
       depth: n.depth,
-      color: n.id === personId ? '#1d4ed8' : '#3b82f6',
+      color: palette.node,
     })),
     links: edges.map((e) => ({
       source: e.source,
       target: e.target,
       type: e.type,
-      color: TYPE_COLORS[e.type] ?? '#6b7280',
+      color: palette.types[e.type] ?? palette.other,
     })),
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <div className="rounded-card border border-line bg-surface overflow-hidden">
       <ForceGraph2D
         graphData={graphData}
         width={undefined}
@@ -71,22 +81,22 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
           const r = isRoot ? 8 : 5;
           ctx.beginPath();
           ctx.arc(x, y, r, 0, 2 * Math.PI);
-          ctx.fillStyle = isRoot ? '#1d4ed8' : (TYPE_COLORS[edges.find(e => e.source === n.id || e.target === n.id)?.type ?? ''] ?? '#3b82f6');
+          ctx.fillStyle = isRoot ? palette.root : (palette.types[edges.find(e => e.source === n.id || e.target === n.id)?.type ?? ''] ?? palette.node);
           ctx.fill();
           if (globalScale >= 1) {
             const fontSize = 12 / globalScale;
             ctx.font = `${fontSize}px Sans-Serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#1f2937';
+            ctx.fillStyle = palette.label;
             ctx.fillText(label, x, y + r + fontSize);
           }
         }}
       />
-      <div className="px-4 py-3 border-t border-gray-100 flex flex-wrap gap-3 text-xs text-gray-500">
-        {Object.entries(TYPE_COLORS).map(([type, color]) => (
+      <div className="px-4 py-3 border-t border-line flex flex-wrap gap-3 text-xs text-muted">
+        {Object.entries(TYPE_TOKENS).map(([type, token]) => (
           <span key={type} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: color }} />
+            <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: `var(${token})` }} />
             {type}
           </span>
         ))}

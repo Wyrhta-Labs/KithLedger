@@ -75,7 +75,7 @@ export default function RelationshipForm({
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </Select>
-          {errors.fromPersonId && <p className="text-xs text-red-600">{errors.fromPersonId.message}</p>}
+          {errors.fromPersonId && <p className="text-xs text-danger">{errors.fromPersonId.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="toPersonId">To Person *</Label>
@@ -85,7 +85,7 @@ export default function RelationshipForm({
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </Select>
-          {errors.toPersonId && <p className="text-xs text-red-600">{errors.toPersonId.message}</p>}
+          {errors.toPersonId && <p className="text-xs text-danger">{errors.toPersonId.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -103,7 +103,7 @@ export default function RelationshipForm({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <input type="checkbox" id="isMutual" {...register('isMutual')} className="h-4 w-4 rounded border-gray-300" />
+        <input type="checkbox" id="isMutual" {...register('isMutual')} className="h-4 w-4 rounded border-line-strong" />
         <Label htmlFor="isMutual">Mutual relationship (bidirectional)</Label>
       </div>
       <div className="space-y-1">
