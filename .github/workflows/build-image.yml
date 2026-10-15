@@ -22,11 +22,11 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Lightweight fast-feedback checks: backend typecheck + web build.
+  # Lightweight fast-feedback checks: backend typecheck, web tests + web build.
   # Runs on the same triggers as the image build. Intentionally NOT a
   # dependency of `build`, so it never blocks the image build — it is an
   # independent signal. No Postgres is provisioned, so this stays limited to
-  # typecheck/build (no runtime tests).
+  # typecheck, build and the DB-free web tests.
   ci:
     name: Typecheck & Web Build
     if: >-
@@ -58,6 +58,10 @@ jobs:
 
       - name: Install web dependencies
         run: npm ci
+        working-directory: web
+
+      - name: Web tests
+        run: npm test
         working-directory: web
 
       - name: Web build

@@ -1,37 +1,135 @@
 @import "tailwindcss";
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
-  --radius: 0.5rem;
-  --sidebar-width: 240px;
+/*
+ * Theme tokens: Heorth's Slate look (the Jaguar mockup's shell, grounds and
+ * shapes) in KithLedger's own colour set — teal where Heorth is blue, and a
+ * teal-ink nav. Every presentation colour in web/src comes from these; the
+ * colour guard (colour-guard.test.ts) fails on hard-coded palette classes.
+ * Dark follows the device (block below).
+ */
+@theme static {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, 'SFMono-Regular', monospace;
+
+  --color-ground: #f0f2f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f8f9fb;
+  --color-surface-3: #eef1f5;
+  --color-line: #e2e6ea;
+  --color-line-strong: #cdd2d8;
+  --color-fg: #1a1d23;
+  --color-muted: #6b7380;
+  --color-faint: #9aa0ab;
+
+  /* teal-700, not teal-600: white text on #0d9488 is 3.7:1, below AA. */
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
+  --color-primary-light: #ecfaf8;
+  --color-primary-border: #99e2d8;
+  --color-on-primary: #ffffff;
+
+  --color-success: #16a34a; --color-success-bg: #f0fdf4; --color-success-border: #bbf7d0;
+  --color-danger: #dc2626;  --color-danger-bg: #fff5f5;  --color-danger-border: #fecaca;
+  --color-warning: #b45309; --color-warning-bg: #fffbeb; --color-warning-border: #fde68a;
+  --color-accent: #7c3aed;  --color-accent-bg: #f3effe;  --color-accent-border: #e3d8fd;
+  --color-info: #0369a1;    --color-info-bg: #f0f9ff;    --color-info-border: #bae6fd;
+
+  --color-nav: #13201f;
+  --color-nav-fg: #e6eeed;
+  --color-nav-muted: #87a09c;
+  --color-nav-hover: #1c2d2b;
+  --color-nav-active: #26403d;
+
+  --color-backdrop: rgb(15 18 24 / 0.45);
+
+  --radius-card: 8px;
+  --radius-control: 5px;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.07), 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-pop: 0 8px 28px rgb(0 0 0 / 0.14);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.07), 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
+}
+
+/* Dark: follows the device. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ground: #0f1217;
+    --color-surface: #171b22;
+    --color-surface-2: #1c2129;
+    --color-surface-3: #232933;
+    --color-line: #2a303b;
+    --color-line-strong: #3b4250;
+    --color-fg: #e6e8ec;
+    --color-muted: #9aa3b2;
+    --color-faint: #6f7886;
+    --color-primary: #2dd4bf;
+    --color-primary-hover: #5eead4;
+    --color-primary-light: #0c2a27;
+    --color-primary-border: #145c54;
+    --color-on-primary: #04201c;
+    --color-success: #4cc27a; --color-success-bg: #10261a; --color-success-border: #1f5a35;
+    --color-danger: #f07171;  --color-danger-bg: #2a1515;  --color-danger-border: #5c2626;
+    --color-warning: #f0ac45; --color-warning-bg: #2a1f0c; --color-warning-border: #5c4415;
+    --color-accent: #a78bfa;  --color-accent-bg: #211a36;  --color-accent-border: #3d2f66;
+    --color-info: #5cb8ec;    --color-info-bg: #0e2130;    --color-info-border: #1d4560;
+    --color-nav: #0a100f;
+    --color-nav-fg: #e6eeed;
+    --color-nav-muted: #7b8f8c;
+    --color-nav-hover: #131c1b;
+    --color-nav-active: #1b2a28;
+    --color-backdrop: rgb(0 0 0 / 0.6);
+    --shadow-pop: 0 8px 28px rgb(0 0 0 / 0.5);
+    color-scheme: dark;
+  }
+}
+
+/* Odd/even rows for lists and tables: put `zebra` on the <ul>/<tbody> and
+   every second row takes a light ground. Its selector outranks a row's
+   own bg-surface, so rows keep their classes. */
+@utility zebra {
+  & > :nth-child(even) {
+    background-color: color-mix(in srgb, var(--color-surface-3) 60%, var(--color-surface));
+  }
 }
 
 * {
-  border-color: hsl(var(--border));
   box-sizing: border-box;
+  border-color: var(--color-line);
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   margin: 0;
+  background-color: var(--color-ground);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+/* Tailwind v4's preflight dropped `cursor: pointer` on buttons (the desktop-app
+   convention). KithLedger is a web app whose clickable things are often cards
+   and rows, so the hand is what says "this is clickable" — restore it here once
+   rather than per component. Utilities (cursor-grab, disabled:cursor-not-allowed)
+   are in a later layer and still win. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='menuitem'],
+  [role='tab'],
+  summary,
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  label:has(> input[type='checkbox']:not(:disabled)) {
+    cursor: pointer;
+  }
 }
