@@ -27,7 +27,7 @@ const TabsList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('inline-flex h-9 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-500', className)}
+      className={cn('inline-flex flex-wrap items-stretch overflow-hidden rounded-[7px] border border-line-strong', className)}
       {...props}
     />
   )
@@ -45,10 +45,13 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
     return (
       <button
         ref={ref}
+        type="button"
+        role="tab"
+        aria-selected={isActive}
         onClick={() => ctx.onValueChange(value)}
         className={cn(
-          'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50',
-          isActive ? 'bg-white text-gray-900 shadow-sm' : 'hover:bg-gray-200',
+          'inline-flex items-center justify-center whitespace-nowrap border-l border-line-strong px-3.5 py-[7px] text-[12.5px] font-semibold first:border-l-0 transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50',
+          isActive ? 'bg-primary-light text-primary' : 'bg-surface text-muted hover:text-fg',
           className
         )}
         {...props}
@@ -69,7 +72,7 @@ const TabsContent = React.forwardRef<HTMLDivElement, TabsContentProps>(
     return (
       <div
         ref={ref}
-        className={cn('mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500', className)}
+        className={cn('mt-3 focus-visible:outline-2 focus-visible:outline-primary', className)}
         {...props}
       />
     );
