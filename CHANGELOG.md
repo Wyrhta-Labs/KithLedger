@@ -216,6 +216,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The web UI takes Heorth's Slate look in a teal colour set.** Same token
+  set, grounds, shapes and shell as Heorth's default theme; primary is
+  teal-700 and the nav is teal ink. Dark mode follows the device. The shell is
+  viewport-high and scrolls in `<main>`; the sidebar groups its items, shows a
+  badge with the pending reminders due today or overdue, carries sign-out in
+  its footer, and collapses to an icon rail below 1100px. Clickable elements
+  show the pointer cursor again (Tailwind v4's preflight had dropped it).
+  Presentation colour comes only from the theme tokens, enforced by a Vitest
+  guard in `web/` that now runs in CI.
+
 - **`POST /api/v1/auth/token` authenticates the supplied `email`** instead of
   hardcoding the admin address. `email` is optional and defaults to the seeded
   admin, so existing callers — including the web UI's password-only login form

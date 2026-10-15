@@ -69,6 +69,10 @@ Built output is served as static files from `web/dist/` by the Hono API in produ
 - Source: `web/src/` — pages, components, hooks, api client, lib/types
 - Dev: `npm run dev:all` starts both API (port 4002) and Vite (port 5174) concurrently
 - Types in `web/src/lib/types.ts` are manually synced from backend schema (no codegen yet)
+- Look: Heorth's Slate theme in a teal colour set. Colours come only from the tokens in
+  `web/src/index.css` (`bg-surface`, `text-muted`, `border-line`, `text-danger`, …); dark mode
+  follows the device by redefining them. `web/src/colour-guard.test.ts` fails on hard-coded
+  palette classes (`text-gray-500`) or hex literals — run `npm test` in `web/` (CI does).
 
 ## Architecture Notes
 
