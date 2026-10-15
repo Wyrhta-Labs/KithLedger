@@ -281,6 +281,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The graph explorer draws its connections again.** The web client read the
+  graph endpoint's edges as `source`/`target`, but the API returns
+  relationship rows keyed `fromPersonId`/`toPersonId`, so every link pointed at
+  `undefined` and only the people appeared. `GraphEdge` now matches the API,
+  and `toGraphData()` maps the rows onto the canvas's links, with a test that
+  every link joins two nodes of the graph.
 - **A household member's first requests can no longer be refused when they
   arrive together** (B4 follow-up, Wyrhta-Labs/wyrhta-labs#1). Just-in-time
   provisioning wrote the `users` row and its `household_members` provenance row

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from '@tanstack/react-router';
 import { usePersonGraph } from '@/hooks/use-people';
+import { toGraphData } from './graph-data';
 
 /** Relationship type → theme token. The canvas cannot read CSS variables,
  *  so `resolveTokens` turns them into colours once per render. */
@@ -42,23 +43,9 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
   if (isLoading) return <div className="py-8 text-center text-muted">Loading graph…</div>;
   if (!data?.data) return <div className="py-8 text-center text-muted">No graph data.</div>;
 
-  const { nodes, edges } = data.data;
+  const { edges } = data.data;
   const palette = resolveTokens();
-
-  const graphData = {
-    nodes: nodes.map((n) => ({
-      id: n.id,
-      name: n.name,
-      depth: n.depth,
-      color: palette.node,
-    })),
-    links: edges.map((e) => ({
-      source: e.source,
-      target: e.target,
-      type: e.type,
-      color: palette.types[e.type] ?? palette.other,
-    })),
-  };
+  const graphData = toGraphData(data.data, palette);
 
   return (
     <div className="rounded-card border border-line bg-surface overflow-hidden">
@@ -73,7 +60,7 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
         linkDirectionalArrowRelPos={1}
         onNodeClick={handleNodeClick}
         nodeCanvasObject={(node, ctx, globalScale) => {
-          const n = node as { x?: number; y?: number; id?: string; name?: string; depth?: number };
+          const n = node as { x?: number; y?: number; id?: string; name?: string };
           const x = n.x ?? 0;
           const y = n.y ?? 0;
           const label = n.name ?? '';
@@ -81,7 +68,7 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
           const r = isRoot ? 8 : 5;
           ctx.beginPath();
           ctx.arc(x, y, r, 0, 2 * Math.PI);
-          ctx.fillStyle = isRoot ? palette.root : (palette.types[edges.find(e => e.source === n.id || e.target === n.id)?.type ?? ''] ?? palette.node);
+          ctx.fillStyle = isRoot ? palette.root : (palette.types[edges.find(e => e.fromPersonId === n.id || e.toPersonId === n.id)?.type ?? ''] ?? palette.node);
           ctx.fill();
           if (globalScale >= 1) {
             const fontSize = 12 / globalScale;

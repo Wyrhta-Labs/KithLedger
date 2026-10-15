@@ -134,12 +134,13 @@ export interface SingleResponse<T> {
 export interface GraphNode {
   id: string;
   name: string;
-  depth: number;
 }
 
+/** A relationship row as the graph endpoint returns it (the subset the UI reads). */
 export interface GraphEdge {
-  source: string;
-  target: string;
+  id: string;
+  fromPersonId: string;
+  toPersonId: string;
   type: string;
   isMutual: boolean;
 }
