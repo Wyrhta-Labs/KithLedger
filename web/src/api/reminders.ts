@@ -9,6 +9,8 @@ export interface ListRemindersParams {
   kind?: 'generic' | 'birthday';
   from?: string;
   to?: string;
+  /** ISO instant; only reminders due at or before it. */
+  due_before?: string;
   limit?: number;
   offset?: number;
 }

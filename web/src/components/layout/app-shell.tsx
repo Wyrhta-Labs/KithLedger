@@ -1,7 +1,10 @@
-import { Outlet, useRouter } from '@tanstack/react-router';
+import { useEffect, useRef } from 'react';
+import { Outlet, useRouterState } from '@tanstack/react-router';
 import Sidebar from './sidebar';
 import TopBar from './top-bar';
 import { ToastProvider } from '@/components/ui/toast';
+import { SCROLL_ROOT_ATTR } from '@/components/ui/dialog';
+import { useNavCounts } from '@/hooks/use-nav-counts';
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
@@ -13,17 +16,28 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export default function AppShell() {
-  const router = useRouter();
-  const pathname = router.state.location.pathname;
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const title = PAGE_TITLES[pathname] ?? (pathname.startsWith('/people/') ? 'Person Detail' : 'KithLedger');
+  const mainRef = useRef<HTMLElement>(null);
+  const counts = useNavCounts();
+
+  // <main> is the page's scroller (the shell is viewport-high), so the
+  // router's window scroll restoration does not reach it: start each page at the top.
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [pathname]);
 
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex h-dvh overflow-hidden bg-ground">
+        <Sidebar counts={counts} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <TopBar title={title} />
-          <main className="flex-1 p-6 overflow-auto">
+          <main
+            ref={mainRef}
+            {...{ [SCROLL_ROOT_ATTR]: '' }}
+            className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"
+          >
             <Outlet />
           </main>
         </div>
