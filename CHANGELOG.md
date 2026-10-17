@@ -287,6 +287,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `undefined` and only the people appeared. `GraphEdge` now matches the API,
   and `toGraphData()` maps the rows onto the canvas's links, with a test that
   every link joins two nodes of the graph.
+- **The graph sits in the middle of its card.** With no width, the canvas took
+  the window's, so it overflowed the card and centred the graph on the window —
+  beside the sidebar, right of the card's centre. The card's width is now
+  measured (and followed on resize); an e2e spec checks the canvas fits it.
 - **A household member's first requests can no longer be refused when they
   arrive together** (B4 follow-up, Wyrhta-Labs/wyrhta-labs#1). Just-in-time
   provisioning wrote the `users` row and its `household_members` provenance row

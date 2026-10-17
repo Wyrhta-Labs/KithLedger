@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { useNavigate } from '@tanstack/react-router';
 import { usePersonGraph } from '@/hooks/use-people';
@@ -21,6 +21,26 @@ function resolveTokens() {
   return { types, root: read('--color-primary'), node: read('--color-primary'), other: read('--color-muted'), label: read('--color-fg') };
 }
 
+/**
+ * The live content width of an element. react-force-graph falls back to
+ * `window.innerWidth` without a width, which overflows the card and centres
+ * the graph on the window instead of the card. A callback ref, because the
+ * card mounts only once the graph has loaded.
+ */
+function useElementWidth() {
+  const [width, setWidth] = useState<number>();
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    setWidth(el.clientWidth);
+    observer.current = new ResizeObserver(() => setWidth(el.clientWidth));
+    observer.current.observe(el);
+  }, []);
+  return [ref, width] as const;
+}
+
 interface GraphViewProps {
   personId: string;
   depth?: number;
@@ -30,6 +50,7 @@ interface GraphViewProps {
 export default function GraphView({ personId, depth = 2, height = 400 }: GraphViewProps) {
   const { data, isLoading } = usePersonGraph(personId, depth);
   const navigate = useNavigate();
+  const [cardRef, width] = useElementWidth();
 
   const handleNodeClick = useCallback(
     (node: { id?: unknown }) => {
@@ -48,10 +69,10 @@ export default function GraphView({ personId, depth = 2, height = 400 }: GraphVi
   const graphData = toGraphData(data.data, palette);
 
   return (
-    <div className="rounded-card border border-line bg-surface overflow-hidden">
+    <div ref={cardRef} data-testid="graph-card" className="rounded-card border border-line bg-surface overflow-hidden">
       <ForceGraph2D
         graphData={graphData}
-        width={undefined}
+        width={width}
         height={height}
         nodeLabel="name"
         nodeColor={(node) => (node as { color: string }).color}
