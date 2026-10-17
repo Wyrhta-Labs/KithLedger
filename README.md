@@ -214,8 +214,19 @@ Pagination: `?limit=20&offset=0` (max 100).
 
 ## Running Tests
 
-Tests require a running PostgreSQL instance with `DATABASE_URL` set.
+Tests require a running PostgreSQL instance and a database whose name ends in
+`_test`. With `DATABASE_URL` unset, the suite targets the Wyrhta dev stack's
+disposable test cluster, `127.0.0.1:15433/kithledger_test`, and — when this
+checkout sits inside the Wyrhta meta repo — takes the `kithledger` password from
+`../deploy/.env` (`KITH_DB_PASSWORD`), so a plain `npm test` works. Outside the
+meta repo the fallback password is `changeme`; export the URL yourself to use
+anything else:
 
 ```bash
 npm test
+# or against your own throwaway database:
+DATABASE_URL=postgres://<user>:<password>@127.0.0.1:<port>/kithledger_test npm test
 ```
+
+The test run does not use the `DATABASE_URL` from this repo's `.env` unless you
+export it — that one names the dev database, which the guard refuses.

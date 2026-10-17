@@ -34,7 +34,7 @@ This file provides guidance to coding agents (Claude Code, Codex, and others) wo
 Copy `.env.example` → `.env`:
 
 ```
-DATABASE_URL=postgres://kith:<password>@localhost:5432/kithledger
+DATABASE_URL=postgres://kithledger:<password>@127.0.0.1:15432/kithledger_dev   # Wyrhta dev stack
 JWT_SECRET=<32+ char random string>   # min 32 chars, e.g. openssl rand -hex 32
 ADMIN_PASSWORD=<password>
 API_PORT=4002   # dev port allocation: Heorth 4000, Feoh 4001, KithLedger 4002
@@ -112,12 +112,17 @@ Follow this pattern (example: a new `notes` resource):
 Tests are **integration tests** that hit a real PostgreSQL database. Before running:
 
 ```bash
-# Option A: use Docker DB
-npm run docker:up   # start DB (and API)
-# Option B: use local DB — ensure DATABASE_URL points to a running instance
-
+# Default: the Wyrhta dev stack's test cluster (db-test, 127.0.0.1:15433)
 npm test
+# Otherwise: export a DATABASE_URL naming a throwaway *_test database
+DATABASE_URL=postgres://<user>:<pw>@127.0.0.1:<port>/kithledger_test npm test
 ```
+
+With `DATABASE_URL` unset, `tests/test-db-default.ts` (the first setup file)
+fills in `127.0.0.1:15433/kithledger_test`, with the password read from the meta
+repo's `../deploy/.env` (`KITH_DB_PASSWORD`), or `changeme` when that file is
+absent. It must run before `tests/setup.ts`: importing `src/db` loads `.env`,
+whose dev `DATABASE_URL` would otherwise fill the gap and be refused.
 
 `tests/setup.ts` runs migrations and truncates all tables before each test. It
 **refuses to run unless the database name ends in `_test`** — it truncates every
