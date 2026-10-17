@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-17
+
 ### Added
 
+- **Three principals, three credentials** (task B8, ADR 0004 §2). A `kl_` key
+  carries a kind — member, household or ops — decided once at authentication
+  from the stored credential, never from the request. The household (dashboard)
+  key sees exactly the `household` slice and is read-only; a leaked one never
+  reads as its owner's personal scope.
+- **Reassign-on-offboarding** (task B9, ADR 0004 §4):
+  `GET`/`POST /api/v1/members/:id/offboarding` previews and runs it, with an
+  explicit `ownerOnlyItems: 'reassign' | 'delete'` and no default; `household`
+  items are always reassigned. Every row also records who last wrote it
+  (`updated_by`).
 - **Graph traversal respects per-member visibility** (task B7 of
   Wyrhta-Labs/wyrhta-labs#1, ADR 0004 §3 — marked "correctness,
   non-negotiable"). `getPersonGraph` was the last unscoped read; it now takes a
@@ -216,6 +228,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`@wyrhta/core` comes from npm** (ADR 0011), now `^0.7.0`, instead of a
+  git tag; the local copies of five helpers it now ships (duration maths, the
+  trailing-slash redirect, the `.env` loader, the test-database guard) are gone.
+- Node 24 in CI and the image; `npm run lint` is real (eslint with a
+  type-aware config) and runs in CI.
 - **The web UI takes Heorth's Slate look in a teal colour set.** Same token
   set, grounds, shapes and shell as Heorth's default theme; primary is
   teal-700 and the nav is teal ink. Dark mode follows the device. The shell is
@@ -281,6 +298,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Recurrence only accepts an advancing ISO 8601 duration.** Any string was
+  accepted: an RRULE silently stopped a reminder recurring, and `P0D` minted a
+  successor due at the same instant forever. Completing a row written before
+  the check now ends the series instead of failing with a 500.
+- The token rate limit keys on the same client IP the `auth.token.*` audit
+  events record.
+- All 60 Dependabot alerts across both lockfiles; `npm audit` reports none.
 - **The graph explorer draws its connections again.** The web client read the
   graph endpoint's edges as `source`/`target`, but the API returns
   relationship rows keyed `fromPersonId`/`toPersonId`, so every link pointed at
