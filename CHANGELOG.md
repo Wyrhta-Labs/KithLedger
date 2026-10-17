@@ -304,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the check now ends the series instead of failing with a 500.
 - The token rate limit keys on the same client IP the `auth.token.*` audit
   events record.
-- All 60 Dependabot alerts across both lockfiles; `npm audit` reports none.
+- The 60 Dependabot alerts open at the time, across both lockfiles.
 - **The graph explorer draws its connections again.** The web client read the
   graph endpoint's edges as `source`/`target`, but the API returns
   relationship rows keyed `fromPersonId`/`toPersonId`, so every link pointed at
